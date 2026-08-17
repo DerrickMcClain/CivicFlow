@@ -12,6 +12,7 @@ public sealed class AdminUserDto
     public int? DepartmentId { get; set; }
     public string? DepartmentName { get; set; }
     public bool IsActive { get; set; }
+    public bool IsEntraUser { get; set; }
 }
 
 public sealed class UpdateUserRoleRequest

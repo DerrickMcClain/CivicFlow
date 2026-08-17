@@ -25,7 +25,8 @@ public sealed class AdminService(IAppDbContext db)
                 Role = x.Role.RoleName.ToString(),
                 DepartmentId = x.DepartmentId,
                 DepartmentName = x.Department != null ? x.Department.DepartmentName : null,
-                IsActive = x.IsActive
+                IsActive = x.IsActive,
+                IsEntraUser = x.EntraObjectId != null
             })
             .ToListAsync(cancellationToken);
     }
@@ -40,6 +41,11 @@ public sealed class AdminService(IAppDbContext db)
             .Include(x => x.Department)
             .FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken)
             ?? throw new NotFoundException("User not found.");
+
+        if (!string.IsNullOrEmpty(user.EntraObjectId))
+        {
+            throw new ForbiddenException("Role is managed in Entra ID.");
+        }
 
         if (user.Role.RoleName == RoleName.Administrator && request.Role != RoleName.Administrator)
         {
@@ -244,7 +250,8 @@ public sealed class AdminService(IAppDbContext db)
         Role = user.Role.RoleName.ToString(),
         DepartmentId = user.DepartmentId,
         DepartmentName = user.Department?.DepartmentName,
-        IsActive = user.IsActive
+        IsActive = user.IsActive,
+        IsEntraUser = user.EntraObjectId != null
     };
 
     private static DepartmentDto ToDepartmentDto(Department department) => new()

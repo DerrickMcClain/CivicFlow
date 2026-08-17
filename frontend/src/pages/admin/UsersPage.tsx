@@ -10,6 +10,7 @@ export type AdminUser = {
   departmentId?: number | null
   departmentName?: string | null
   isActive: boolean
+  isEntraUser?: boolean
 }
 
 export type Department = {
@@ -126,25 +127,29 @@ export function UsersPage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-end gap-2">
-                  <label className="space-y-1 text-sm">
-                    <span className="block text-[var(--civic-navy)]/70">Role</span>
-                    <select
-                      className="rounded-lg border border-[var(--civic-line)] bg-white px-3 py-2"
-                      value={draft.role}
-                      onChange={(e) =>
-                        setDrafts((prev) => ({
-                          ...prev,
-                          [user.userId]: { ...draft, role: e.target.value },
-                        }))
-                      }
-                    >
-                      {ROLES.map((role) => (
-                        <option key={role} value={role}>
-                          {role}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  {user.isEntraUser ? (
+                    <p className="text-sm text-[var(--civic-navy)]/70">Managed in Entra ID</p>
+                  ) : (
+                    <label className="space-y-1 text-sm">
+                      <span className="block text-[var(--civic-navy)]/70">Role</span>
+                      <select
+                        className="rounded-lg border border-[var(--civic-line)] bg-white px-3 py-2"
+                        value={draft.role}
+                        onChange={(e) =>
+                          setDrafts((prev) => ({
+                            ...prev,
+                            [user.userId]: { ...draft, role: e.target.value },
+                          }))
+                        }
+                      >
+                        {ROLES.map((role) => (
+                          <option key={role} value={role}>
+                            {role}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   <label className="space-y-1 text-sm">
                     <span className="block text-[var(--civic-navy)]/70">Department</span>
                     <select
@@ -165,14 +170,16 @@ export function UsersPage() {
                       ))}
                     </select>
                   </label>
-                  <button
-                    type="button"
-                    disabled={busyId === user.userId}
-                    onClick={() => void saveUser(user.userId)}
-                    className="rounded-lg bg-[var(--civic-navy)] px-4 py-2 font-semibold text-white disabled:opacity-60"
-                  >
-                    Save
-                  </button>
+                  {user.isEntraUser ? null : (
+                    <button
+                      type="button"
+                      disabled={busyId === user.userId}
+                      onClick={() => void saveUser(user.userId)}
+                      className="rounded-lg bg-[var(--civic-navy)] px-4 py-2 font-semibold text-white disabled:opacity-60"
+                    >
+                      Save
+                    </button>
+                  )}
                 </div>
               </div>
             </article>
