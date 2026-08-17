@@ -15,6 +15,8 @@ export type ServiceRequestListItem = {
   priority: Priority
   createdAt: string
   submittedAt?: string | null
+  slaDueAt?: string | null
+  isSlaOverdue?: boolean
 }
 
 export type NoteItem = {
@@ -56,6 +58,8 @@ export type ServiceRequestDetail = {
   createdAt: string
   submittedAt?: string | null
   completedAt?: string | null
+  slaDueAt?: string | null
+  isSlaOverdue?: boolean
   notes: NoteItem[]
   documents: DocumentItem[]
   history: StatusHistoryItem[]

@@ -1,5 +1,6 @@
 using CivicFlow.Domain.Entities;
 using CivicFlow.Domain.Enums;
+using CivicFlow.Domain.Workflow;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +17,8 @@ public sealed class DbSeeder(CivicFlowDbContext db, IPasswordHasher<User> passwo
         var department = await SeedDepartmentAsync(cancellationToken);
         await SeedRequestTypeAsync(department.DepartmentId, cancellationToken);
         await SeedUsersAsync(department.DepartmentId, cancellationToken);
+        await SeedPolicyArticlesAsync(cancellationToken);
+        await BackfillSlaDueDatesAsync(cancellationToken);
     }
 
     private async Task SeedRolesAsync(CancellationToken cancellationToken)
@@ -133,5 +136,54 @@ public sealed class DbSeeder(CivicFlowDbContext db, IPasswordHasher<User> passwo
         };
         user.PasswordHash = passwordHasher.HashPassword(user, DemoPassword);
         db.Users.Add(user);
+    }
+
+    private async Task SeedPolicyArticlesAsync(CancellationToken cancellationToken)
+    {
+        if (await db.PolicyArticles.AnyAsync(cancellationToken))
+        {
+            return;
+        }
+
+        db.PolicyArticles.AddRange(
+            new PolicyArticle
+            {
+                Title = "Residential deck permits",
+                Summary = "When a building permit is required for deck work.",
+                Body = "Deck additions and replacements typically require a residential building permit when the deck is attached to the home or exceeds 30 inches above grade. Submit plans showing dimensions, setbacks, and railing details.",
+                Keywords = "deck, permit, residential, railing, setback"
+            },
+            new PolicyArticle
+            {
+                Title = "Fence height and location",
+                Summary = "Standard fence rules for residential lots.",
+                Body = "Front-yard fences are generally limited to 4 feet. Side and rear fences may be up to 6 feet. Corner lots may have additional sight-line restrictions.",
+                Keywords = "fence, height, residential, corner lot"
+            },
+            new PolicyArticle
+            {
+                Title = "Required documents for permit review",
+                Summary = "Common attachments staff expect during review.",
+                Body = "Include a site plan, elevation drawings, and photos of the existing conditions when available. Additional information may be requested while a case is under review.",
+                Keywords = "documents, site plan, drawings, review"
+            });
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task BackfillSlaDueDatesAsync(CancellationToken cancellationToken)
+    {
+        var requests = await db.ServiceRequests
+            .Where(x => x.SlaDueAt == null && x.SubmittedAt != null)
+            .ToListAsync(cancellationToken);
+
+        foreach (var request in requests)
+        {
+            request.SlaDueAt = SlaPolicy.ComputeDueAt(request.Priority, request.SubmittedAt!.Value);
+        }
+
+        if (requests.Count > 0)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
     }
 }

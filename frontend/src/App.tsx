@@ -10,6 +10,7 @@ import { CitizenLayout } from './pages/citizen/CitizenLayout'
 import { DashboardPage } from './pages/citizen/DashboardPage'
 import { RequestDetailPage } from './pages/citizen/RequestDetailPage'
 import { SubmitRequestPage } from './pages/citizen/SubmitRequestPage'
+import { PolicyHelpPage } from './pages/citizen/PolicyHelpPage'
 import { CaseDetailPage } from './pages/staff/CaseDetailPage'
 import { QueuePage } from './pages/staff/QueuePage'
 import { StaffLayout } from './pages/staff/StaffLayout'
@@ -34,6 +35,7 @@ export default function App() {
           <Route path="/citizen" element={<CitizenLayout />}>
             <Route index element={<DashboardPage />} />
             <Route path="new" element={<SubmitRequestPage />} />
+            <Route path="policy-help" element={<PolicyHelpPage />} />
             <Route path="requests/:id" element={<RequestDetailPage />} />
           </Route>
         </Route>

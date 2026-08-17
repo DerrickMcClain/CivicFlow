@@ -49,4 +49,5 @@ export type SupervisorDashboard = {
   openCount: number
   completedCount: number
   agingOverSevenDaysCount: number
+  slaBreachedCount: number
 }

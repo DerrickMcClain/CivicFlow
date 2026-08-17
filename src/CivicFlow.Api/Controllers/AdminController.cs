@@ -118,6 +118,13 @@ public class AdminController(AdminService admin) : ControllerBase
         return Ok(await admin.ListAuditLogsAsync(take, cancellationToken));
     }
 
+    [HttpGet("reports/cases.csv")]
+    public async Task<IActionResult> ExportCasesCsv(CancellationToken cancellationToken)
+    {
+        var bytes = await admin.ExportCasesCsvAsync(cancellationToken);
+        return File(bytes, "text/csv", "civicflow-cases.csv");
+    }
+
     private ObjectResult Map(AppException ex) => StatusCode(ex.Status, new
     {
         status = ex.Status,

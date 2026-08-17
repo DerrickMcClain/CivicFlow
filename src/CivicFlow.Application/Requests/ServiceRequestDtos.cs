@@ -45,6 +45,7 @@ public sealed class SupervisorDashboardDto
     public int OpenCount { get; set; }
     public int CompletedCount { get; set; }
     public int AgingOverSevenDaysCount { get; set; }
+    public int SlaBreachedCount { get; set; }
 }
 
 public sealed class StaffAssigneeDto
@@ -63,6 +64,8 @@ public sealed class ServiceRequestListDto
     public Priority Priority { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? SubmittedAt { get; set; }
+    public DateTime? SlaDueAt { get; set; }
+    public bool IsSlaOverdue { get; set; }
 }
 
 public sealed class ServiceRequestDetailDto
@@ -79,6 +82,8 @@ public sealed class ServiceRequestDetailDto
     public DateTime CreatedAt { get; set; }
     public DateTime? SubmittedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
+    public DateTime? SlaDueAt { get; set; }
+    public bool IsSlaOverdue { get; set; }
     public IReadOnlyList<NoteDto> Notes { get; set; } = [];
     public IReadOnlyList<DocumentDto> Documents { get; set; } = [];
     public IReadOnlyList<StatusHistoryDto> History { get; set; } = [];

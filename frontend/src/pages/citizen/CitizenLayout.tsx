@@ -1,4 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
+import { NotificationBell } from '../../components/NotificationBell'
 import { useAuth } from '../../auth/AuthContext'
 
 export function CitizenLayout() {
@@ -32,6 +33,15 @@ export function CitizenLayout() {
             >
               Submit request
             </NavLink>
+            <NavLink
+              to="/citizen/policy-help"
+              className={({ isActive }) =>
+                `rounded-lg px-3 py-1.5 ${isActive ? 'bg-[var(--civic-sky)] text-[var(--civic-navy)] font-semibold' : 'text-[var(--civic-navy)]/80 hover:bg-[var(--civic-sky)]/40'}`
+              }
+            >
+              Policy help
+            </NavLink>
+            <NotificationBell />
             <span className="hidden sm:inline px-2 text-[var(--civic-navy)]/70">
               {user?.firstName || user?.email}
             </span>

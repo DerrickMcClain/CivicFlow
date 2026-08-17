@@ -68,6 +68,17 @@ resource documentsContainer 'Microsoft.Storage/storageAccounts/blobServices/cont
 
 var blobConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
 
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: 'appi-civicflow-${suffix}'
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    Flow_Type: 'Bluefield'
+    Request_Source: 'rest'
+  }
+}
+
 resource sqlServer 'Microsoft.Sql/servers@2023-08-01' = {
   name: sqlServerName
   location: location
@@ -189,6 +200,10 @@ resource apiApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'BlobStorage__ContainerName'
           value: 'civicflow-documents'
+        }
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: appInsights.properties.ConnectionString
         }
         {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'

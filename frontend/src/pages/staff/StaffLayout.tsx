@@ -1,4 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
+import { NotificationBell } from '../../components/NotificationBell'
 import { useAuth } from '../../auth/AuthContext'
 
 export function StaffLayout() {
@@ -35,6 +36,7 @@ export function StaffLayout() {
                 Supervisor dashboard
               </NavLink>
             ) : null}
+            <NotificationBell />
             <span className="hidden sm:inline px-2 text-[var(--civic-sky)]">
               {user?.firstName || user?.email} · {user?.role}
             </span>

@@ -1,5 +1,6 @@
 using CivicFlow.Application.Abstractions;
 using CivicFlow.Domain.Entities;
+using CivicFlow.Infrastructure.Notifications;
 using CivicFlow.Infrastructure.Seed;
 using CivicFlow.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
@@ -35,6 +36,16 @@ public static class DependencyInjection
         else
         {
             services.AddSingleton<IFileStorage, LocalFileStorage>();
+        }
+
+        var smtpHost = configuration["Email:SmtpHost"];
+        if (!string.IsNullOrWhiteSpace(smtpHost))
+        {
+            services.AddSingleton<IEmailSender, SmtpEmailSender>();
+        }
+        else
+        {
+            services.AddSingleton<IEmailSender, LogEmailSender>();
         }
 
         return services;

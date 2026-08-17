@@ -1,4 +1,6 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
+import { NotificationBell } from '../../components/NotificationBell'
+import { downloadAuthenticatedFile } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 
 export function AdminLayout() {
@@ -40,6 +42,14 @@ export function AdminLayout() {
             >
               Audit log
             </NavLink>
+            <button
+              type="button"
+              className="rounded-lg px-3 py-1.5 text-[var(--civic-sky)] hover:bg-white/10"
+              onClick={() => void downloadAuthenticatedFile('/api/admin/reports/cases.csv', 'civicflow-cases.csv')}
+            >
+              Export CSV
+            </button>
+            <NotificationBell />
             <span className="hidden sm:inline px-2 text-[var(--civic-sky)]">
               {user?.firstName || user?.email} · Admin
             </span>

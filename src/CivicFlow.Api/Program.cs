@@ -3,9 +3,11 @@ using CivicFlow.Api.Auth;
 using CivicFlow.Api.Middleware;
 using CivicFlow.Application.Abstractions;
 using CivicFlow.Application.Admin;
+using CivicFlow.Application.Assistant;
 using CivicFlow.Application.Auth;
 using CivicFlow.Application.Catalog;
 using CivicFlow.Application.Documents;
+using CivicFlow.Application.Notifications;
 using CivicFlow.Application.Requests;
 using CivicFlow.Infrastructure;
 using CivicFlow.Infrastructure.Seed;
@@ -17,6 +19,8 @@ builder.Services.AddCivicFlowInfrastructure(builder.Configuration);
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<RequestService>();
 builder.Services.AddScoped<DocumentService>();
+builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<PolicyAssistantService>();
 builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddControllers()
@@ -27,6 +31,12 @@ builder.Services.AddControllers()
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+var appInsightsConnectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+if (!string.IsNullOrWhiteSpace(appInsightsConnectionString))
+{
+    builder.Services.AddApplicationInsightsTelemetry();
+}
 
 builder.Services.AddCivicFlowAuthentication(builder.Configuration);
 

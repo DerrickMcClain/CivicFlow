@@ -48,7 +48,7 @@ export function SupervisorDashboardPage() {
       {error ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 
       {data ? (
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-2xl border border-[var(--civic-line)] bg-white p-5">
             <p className="text-sm text-[var(--civic-navy)]/60">Open cases</p>
             <p className="mt-2 text-4xl font-semibold text-[var(--civic-navy)]">{data.openCount}</p>
@@ -64,6 +64,10 @@ export function SupervisorDashboardPage() {
             <p className="mt-2 text-4xl font-semibold text-[var(--civic-accent)]">
               {data.agingOverSevenDaysCount}
             </p>
+          </div>
+          <div className="rounded-2xl border border-[var(--civic-line)] bg-white p-5">
+            <p className="text-sm text-[var(--civic-navy)]/60">SLA breached</p>
+            <p className="mt-2 text-4xl font-semibold text-red-600">{data.slaBreachedCount}</p>
           </div>
         </div>
       ) : !error ? (

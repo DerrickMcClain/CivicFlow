@@ -70,6 +70,7 @@ Microsoft Entra ID is supported as an **optional dual-mode** sign-in (see [Optio
 - React shell: login, JWT storage, role-gated routes
 - Optional Microsoft Entra ID (MSAL SPA + dual JwtBearer API + app roles)
 - Document attachments with dual-mode storage (local disk / Azure Blob)
+- SLA timers, in-app notifications, policy search assistant, admin CSV export, optional App Insights
 - Citizen portal: my requests, submit Residential Permit, request detail + timeline
 - Staff / supervisor UI: work queue, case actions, supervisor dashboard
 - Admin UI: users + roles, catalog (departments / request types), audit log
@@ -346,15 +347,28 @@ Allowed types: PDF, JPEG, PNG, TXT, DOC, DOCX — max **10 MB** per file, **10 f
 Docker Compose mounts a `civicflow-docs` volume at `/data/documents`. The Bicep template provisions a
 Storage Account and wires `BlobStorage__ConnectionString` to the API App Service.
 
-## Phase 2 (remaining non-goals)
+## Phase 2 complete
+
+Phase 2 adds optional enterprise patterns on top of the MVP:
+
+| Feature | Behavior |
+| --- | --- |
+| Entra ID | Dual-mode MSAL + JwtBearer (see above) |
+| Documents | Local disk or Azure Blob attachments |
+| SLA timers | Priority-based due dates; overdue surfaced in queue and supervisor dashboard |
+| Notifications | In-app alerts + logged email (SMTP optional) on assignment and key status changes |
+| Policy assistant | Keyword search over seeded permit FAQ articles (not LLM RAG) |
+| Reporting | Admin CSV export for Power BI / Excel; Bicep includes Storage + Application Insights |
+| Observability | Application Insights when `APPLICATIONINSIGHTS_CONNECTION_STRING` is set |
+
+## Out of scope (future)
 
 Not implemented / not claimed:
 
-- Email or push notifications
-- SLA timers
-- Power BI dashboards
-- RAG / policy assistant
-- Application Insights / Key Vault hardening
+- Live LLM / RAG over dynamic policy corpora
+- Native Power BI embedded dashboards
+- Push/mobile notifications
+- Key Vault secret references (App Service settings used directly)
 
 ## Resume talking points (factual)
 
@@ -364,8 +378,9 @@ Not implemented / not claimed:
 - Packaged local Docker Compose, GitHub Actions CI, and Azure Bicep (App Service + Azure SQL) for a repeatable deploy
 - Optional Entra ID dual-mode (MSAL SPA + JwtBearer API + app roles); local seeded JWT unchanged when unset
 - Optional document attachments with dual-mode storage (local disk or Azure Blob)
+- SLA tracking, in-app/email notifications, policy search assistant, CSV reporting, and optional Application Insights
 
-Do not claim: a live Azure URL, a verified Entra tenant, SLA, Power BI, or RAG.
+Do not claim: a live Azure URL, a verified Entra tenant, live LLM RAG, embedded Power BI, or push notifications.
 
 ## License
 

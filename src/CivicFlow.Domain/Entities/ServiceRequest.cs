@@ -17,6 +17,7 @@ public class ServiceRequest
     public DateTime UpdatedAt { get; set; }
     public DateTime? SubmittedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
+    public DateTime? SlaDueAt { get; set; }
     public User Citizen { get; set; } = null!;
     public ServiceRequestType RequestType { get; set; } = null!;
     public User? AssignedEmployee { get; set; }

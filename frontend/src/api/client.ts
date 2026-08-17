@@ -147,16 +147,23 @@ export async function downloadDocument(
   documentId: number,
   fileName: string,
 ): Promise<void> {
+  await downloadAuthenticatedFile(
+    `/api/requests/${requestId}/documents/${documentId}`,
+    fileName,
+  )
+}
+
+export async function downloadAuthenticatedFile(
+  path: string,
+  fileName: string,
+): Promise<void> {
   const headers = new Headers()
   const token = getStoredToken()
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)
   }
 
-  const response = await fetch(
-    resolveUrl(`/api/requests/${requestId}/documents/${documentId}`),
-    { headers },
-  )
+  const response = await fetch(resolveUrl(path), { headers })
 
   if (!response.ok) {
     let message = `Download failed (${response.status})`

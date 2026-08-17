@@ -110,6 +110,15 @@ export function RequestDetailPage() {
             {detail.assignedEmployeeName || 'Unassigned'}
           </p>
         </div>
+        {detail.slaDueAt ? (
+          <div>
+            <p className="text-xs uppercase tracking-wide text-[var(--civic-navy)]/60">SLA due</p>
+            <p className={`font-semibold ${detail.isSlaOverdue ? 'text-red-600' : 'text-[var(--civic-navy)]'}`}>
+              {new Date(detail.slaDueAt).toLocaleString()}
+              {detail.isSlaOverdue ? ' · Overdue' : ''}
+            </p>
+          </div>
+        ) : null}
         <div className="md:col-span-3">
           <p className="text-xs uppercase tracking-wide text-[var(--civic-navy)]/60">Description</p>
           <p className="mt-1 whitespace-pre-wrap text-[var(--civic-navy)]">{detail.description}</p>
