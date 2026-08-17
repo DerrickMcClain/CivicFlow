@@ -47,14 +47,14 @@ React SPA (Citizen / Staff / Admin)
 
 ## Security model
 
-1. Authenticate with local JWT (`sub`, `email`, `role` claims).
+1. Authenticate with local JWT (`sub`, `email`, `role` claims) **or**, when configured, Microsoft Entra ID access tokens with app roles.
 2. Authorize by role on endpoints (`Citizen`, `Employee`, `Supervisor`, `Administrator`).
 3. Enforce resource ownership in application services (cross-citizen → **403**).
 4. Enforce workflow transitions in `WorkflowPolicy` (illegal → **409**).
 5. Closed cases (`Completed`, `Cancelled`) are immutable.
 6. Internal notes are never returned to citizens.
 
-Microsoft Entra ID is intentionally **Phase 2** (not claimed in this MVP).
+Microsoft Entra ID is supported as an **optional dual-mode** sign-in (see [Optional Entra ID setup](#optional-entra-id-setup)). Docker Compose and CI stay on seeded JWT unless you configure a tenant.
 
 ## Current status
 
@@ -68,6 +68,7 @@ Microsoft Entra ID is intentionally **Phase 2** (not claimed in this MVP).
 - Admin users, departments, request types, audit logs
 - Health endpoint + standard error envelope `{ status, message, traceId }`
 - React shell: login, JWT storage, role-gated routes
+- Optional Microsoft Entra ID (MSAL SPA + dual JwtBearer API + app roles)
 - Citizen portal: my requests, submit Residential Permit, request detail + timeline
 - Staff / supervisor UI: work queue, case actions, supervisor dashboard
 - Admin UI: users + roles, catalog (departments / request types), audit log
@@ -208,7 +209,8 @@ App Service, and the frontend is built with `VITE_API_BASE_URL` pointing at the 
 
 API app settings written by the template: `ASPNETCORE_ENVIRONMENT=Production`, `ASPNETCORE_URLS`,
 `ConnectionStrings__CivicFlow`, `Jwt__Issuer`, `Jwt__Audience`, `Jwt__SigningKey`,
-`Jwt__ExpiryMinutes`, `Cors__AllowedOrigin`. The API migrates and seeds on startup, so there is no
+`Jwt__ExpiryMinutes`, `Cors__AllowedOrigin`, and optional `AzureAd__TenantId`, `AzureAd__ClientId`,
+`AzureAd__Audience` (empty by default). The API migrates and seeds on startup, so there is no
 separate migration step.
 
 ### 1. Provision infrastructure
@@ -265,11 +267,67 @@ az webapp deploy --resource-group rg-civicflow-mvp --name <apiAppName> --src-pat
 2. Sign in at `<webBaseUrl>` as `employee@civicflow.local`
 3. Move one case through a status transition and confirm it appears in the case's status history
 
-## Phase 2 (explicit non-goals for this MVP)
+## Optional Entra ID setup
+
+CivicFlow runs in **dual mode**: without Entra configuration, nothing changes — Docker Compose and
+GitHub Actions CI keep using seeded JWT accounts. When both the API and SPA are configured, users
+can click **Sign in with Microsoft** and the API validates Entra access tokens, JIT-provisions users
+by `oid`, and maps Entra **app roles** to CivicFlow roles.
+
+This repository ships the code and documentation only; it does **not** claim a live Microsoft tenant
+has been verified.
+
+### API configuration
+
+Set these app settings (or `appsettings` keys) on the API. All three must be non-empty to register
+the Entra JwtBearer scheme:
+
+| Setting | Purpose |
+| --- | --- |
+| `AzureAd__TenantId` | Entra tenant GUID |
+| `AzureAd__ClientId` | API application (client) ID |
+| `AzureAd__Audience` | API App ID URI or client ID; must match token `aud` |
+
+Optional: `AzureAd__Instance` (defaults to `https://login.microsoftonline.com/`).
+
+Local JWT settings (`Jwt__*`) stay required even when Entra is enabled — seeded demo login still
+works for portfolio demos.
+
+### SPA configuration
+
+Rebuild the frontend with all three Vite variables set to show the Microsoft button:
+
+| Variable | Example |
+| --- | --- |
+| `VITE_ENTRA_CLIENT_ID` | SPA app registration client ID |
+| `VITE_ENTRA_TENANT_ID` | Same tenant GUID as the API |
+| `VITE_ENTRA_API_SCOPE` | `api://<api-client-id>/access_as_user` |
+
+The Azure deploy workflow accepts optional `vite_entra_*` inputs (defaults empty) so existing
+deploys stay seed-only.
+
+### Tenant setup (operator checklist)
+
+Single-tenant (`Accounts in this organizational directory only`):
+
+1. **API app registration** — Expose scope `access_as_user`. Add app roles `Citizen`, `Employee`,
+   `Supervisor`, `Administrator` (`value` = those exact strings; allowed member type: User).
+2. **SPA app registration** — SPA redirect URIs: `http://localhost` (Docker), `http://localhost:5173`
+   (Vite dev), and your Azure frontend origin. Grant delegated permission to the API scope. No client
+   secret.
+3. **Assign users** — Enterprise applications → Users and groups → assign API app roles.
+4. **Deploy** — Set API `AzureAd__*` app settings and redeploy the SPA with `VITE_ENTRA_*`.
+
+### Entra behavior notes
+
+- Roles come from Entra app roles on every request; admin cannot change roles for Entra-linked users.
+- Password login for an Entra-provisioned account returns `401 Invalid email or password.` (by design).
+- After MSAL login the SPA calls `GET /api/auth/me` for CivicFlow profile (`userId`, name, role).
+
+## Phase 2 (remaining non-goals)
 
 Not implemented / not claimed:
 
-- Microsoft Entra ID
 - Document upload / Blob storage
 - Email or push notifications
 - SLA timers
@@ -283,8 +341,9 @@ Not implemented / not claimed:
 - Implemented ASP.NET Core clean architecture with JWT RBAC and resource-level authorization
 - Delivered React portals for citizen, staff, and admin personas against a REST API
 - Packaged local Docker Compose, GitHub Actions CI, and Azure Bicep (App Service + Azure SQL) for a repeatable deploy
+- Optional Entra ID dual-mode (MSAL SPA + JwtBearer API + app roles); local seeded JWT unchanged when unset
 
-Do not claim a live Azure URL, Entra ID, Blob, SLA, Power BI, or RAG.
+Do not claim: a live Azure URL, a verified Entra tenant, Blob, SLA, Power BI, or RAG.
 
 ## License
 
