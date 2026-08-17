@@ -1,8 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, homePathForRole, useAuth } from './auth/AuthContext'
 import { RequireAuth } from './auth/RequireAuth'
-import { AdminHomePage } from './pages/AdminHomePage'
 import { LoginPage } from './pages/LoginPage'
+import { AdminLayout } from './pages/admin/AdminLayout'
+import { AuditLogPage } from './pages/admin/AuditLogPage'
+import { RequestTypesPage } from './pages/admin/RequestTypesPage'
+import { UsersPage } from './pages/admin/UsersPage'
 import { CitizenLayout } from './pages/citizen/CitizenLayout'
 import { DashboardPage } from './pages/citizen/DashboardPage'
 import { RequestDetailPage } from './pages/citizen/RequestDetailPage'
@@ -44,7 +47,11 @@ export default function App() {
         </Route>
 
         <Route element={<RequireAuth roles={['Administrator']} />}>
-          <Route path="/admin/*" element={<AdminHomePage />} />
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<UsersPage />} />
+            <Route path="catalog" element={<RequestTypesPage />} />
+            <Route path="audit" element={<AuditLogPage />} />
+          </Route>
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

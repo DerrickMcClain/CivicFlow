@@ -76,6 +76,38 @@ public sealed class AdminService(IAppDbContext db)
         return ToUserDto(user);
     }
 
+    public async Task<IReadOnlyList<DepartmentDto>> ListDepartmentsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await db.Departments
+            .AsNoTracking()
+            .OrderBy(x => x.DepartmentName)
+            .Select(x => new DepartmentDto
+            {
+                DepartmentId = x.DepartmentId,
+                DepartmentName = x.DepartmentName,
+                Description = x.Description
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<RequestTypeDto>> ListRequestTypesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await db.ServiceRequestTypes
+            .AsNoTracking()
+            .OrderBy(x => x.Name)
+            .Select(x => new RequestTypeDto
+            {
+                ServiceRequestTypeId = x.ServiceRequestTypeId,
+                DepartmentId = x.DepartmentId,
+                Name = x.Name,
+                Description = x.Description,
+                IsActive = x.IsActive
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<DepartmentDto> CreateDepartmentAsync(
         UpsertDepartmentRequest request,
         CancellationToken cancellationToken = default)

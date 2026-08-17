@@ -32,6 +32,13 @@ public class AdminController(AdminService admin) : ControllerBase
         }
     }
 
+    [HttpGet("departments")]
+    public async Task<ActionResult<IReadOnlyList<DepartmentDto>>> Departments(
+        CancellationToken cancellationToken)
+    {
+        return Ok(await admin.ListDepartmentsAsync(cancellationToken));
+    }
+
     [HttpPost("departments")]
     public async Task<ActionResult<DepartmentDto>> CreateDepartment(
         [FromBody] UpsertDepartmentRequest body,
@@ -62,6 +69,13 @@ public class AdminController(AdminService admin) : ControllerBase
         {
             return Map(ex);
         }
+    }
+
+    [HttpGet("request-types")]
+    public async Task<ActionResult<IReadOnlyList<RequestTypeDto>>> RequestTypes(
+        CancellationToken cancellationToken)
+    {
+        return Ok(await admin.ListRequestTypesAsync(cancellationToken));
     }
 
     [HttpPost("request-types")]
