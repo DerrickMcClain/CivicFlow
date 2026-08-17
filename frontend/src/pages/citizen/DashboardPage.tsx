@@ -40,10 +40,7 @@ export function DashboardPage() {
             Track permits and service cases you have submitted.
           </p>
         </div>
-        <Link
-          to="/citizen/new"
-          className="rounded-lg bg-[var(--civic-navy)] px-4 py-2.5 font-semibold text-white hover:bg-[var(--civic-ink)]"
-        >
+        <Link to="/citizen/new" className="btn-cta btn-cta--lg">
           New request
         </Link>
       </div>
@@ -54,7 +51,7 @@ export function DashboardPage() {
       {!loading && !error && items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[var(--civic-line)] bg-white/70 px-6 py-10 text-center">
           <p className="text-[var(--civic-navy)]">No requests yet.</p>
-          <Link to="/citizen/new" className="mt-3 inline-block text-[var(--civic-blue)] underline">
+          <Link to="/citizen/new" className="btn-cta btn-cta--lg mt-3">
             Submit a Residential Permit
           </Link>
         </div>

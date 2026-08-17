@@ -28,7 +28,7 @@ export function CitizenLayout() {
             <NavLink
               to="/citizen/new"
               className={({ isActive }) =>
-                `rounded-lg px-3 py-1.5 ${isActive ? 'bg-[var(--civic-sky)] text-[var(--civic-navy)] font-semibold' : 'text-[var(--civic-navy)]/80 hover:bg-[var(--civic-sky)]/40'}`
+                `btn-cta btn-cta--nav${isActive ? ' btn-cta--active' : ''}`
               }
             >
               Submit request
