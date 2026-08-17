@@ -54,7 +54,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<CivicFlowDbContext>();
-    await db.Database.MigrateAsync();
+    await MigrateWithRetryAsync(db);
     await scope.ServiceProvider.GetRequiredService<DbSeeder>().SeedAsync();
 }
 
@@ -67,7 +67,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+if (ShouldRedirectHttps())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -75,5 +78,29 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static bool ShouldRedirectHttps()
+{
+    var urls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
+    return string.IsNullOrEmpty(urls)
+        || urls.Contains("https://", StringComparison.OrdinalIgnoreCase);
+}
+
+static async Task MigrateWithRetryAsync(CivicFlowDbContext db)
+{
+    const int maxAttempts = 10;
+    for (var attempt = 1; ; attempt++)
+    {
+        try
+        {
+            await db.Database.MigrateAsync();
+            return;
+        }
+        catch (Exception) when (attempt < maxAttempts)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2));
+        }
+    }
+}
 
 public partial class Program;
