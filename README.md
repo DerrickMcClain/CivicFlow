@@ -26,7 +26,7 @@ Built as a portfolio project for public-sector / Microsoft-enterprise roles (app
 | Data | EF Core, SQL Server sequence (`CIV-YYYY-######`) |
 | Tests | xUnit + `WebApplicationFactory` against SQL Server / LocalDB |
 | UI | React 19, TypeScript, Vite, React Router, Tailwind CSS |
-| Delivery (planned) | Docker Compose, GitHub Actions CI, Azure App Service + Azure SQL |
+| Delivery | Docker Compose, GitHub Actions CI, Azure Bicep (App Service + Azure SQL) |
 
 ## Architecture
 
@@ -71,11 +71,12 @@ Microsoft Entra ID is intentionally **Phase 2** (not claimed in this MVP).
 - Citizen portal: my requests, submit Residential Permit, request detail + timeline
 - Staff / supervisor UI: work queue, case actions, supervisor dashboard
 - Admin UI: users + roles, catalog (departments / request types), audit log
+- Docker Compose local stack (API + SQL Server + nginx-served frontend)
+- GitHub Actions CI (build, xUnit, frontend build)
+- Azure Bicep template + manual deploy workflow
 
-**Next**
-- Docker Compose local stack
-- GitHub Actions CI
-- Azure deployment (MVP definition of done)
+**Later (optional)**
+- Provision a live Azure subscription and follow [Azure deploy](#azure-deploy) if you want a public demo URL. The Bicep template and GitHub workflow are the Azure deliverable; a running cloud instance is not required to review the project.
 
 ## Local run (dev)
 
@@ -99,7 +100,7 @@ Start LocalDB if needed:
 sqllocaldb start MSSQLLocalDB
 ```
 
-Docker SQL (`localhost,1433` / `sa` / `CivicFlow_Sql!23`) is for the Compose stack. Azure SQL comes in the Azure deploy task.
+Docker SQL (`localhost,1433` / `sa` / `CivicFlow_Sql!23`) is for the Compose stack. Azure SQL is configured by `infra/main.bicep` — see [Azure deploy](#azure-deploy).
 
 Tests default to LocalDB database `CivicFlow_Test` unless `ConnectionStrings__CivicFlow` is set.
 
@@ -123,6 +124,25 @@ npm run dev
 ```
 
 Vite proxies `/api` and `/health` to `http://localhost:5080`. Open `http://localhost:5173`.
+
+API calls use relative paths by default, which is what local dev and the Docker/nginx stack need.
+Set the build-time variable `VITE_API_BASE_URL` only when the frontend is served from a different
+origin than the API (see [Azure deploy](#azure-deploy)).
+
+### 4. Docker Compose (API + SQL Server + UI)
+
+```powershell
+cd C:\Users\derri\Projects\CivicFlow
+docker compose up --build
+```
+
+| Service | URL |
+|---|---|
+| UI | `http://localhost` |
+| API / health | `http://localhost:8080/health` (also `http://localhost/health` through nginx) |
+| SQL Server | `localhost,1433` / `sa` / `CivicFlow_Sql!23` |
+
+The API migrates and seeds on startup. Log in with a seed user below.
 
 ## Seed users (local / demo only)
 
@@ -150,20 +170,100 @@ Seed catalog: department **Planning & Development**, type **Residential Permit**
 
 ## Screenshots
 
-_Placeholder — add after UI screens ship_
+Captured from the Docker local stack (`http://localhost`).
 
-- Login / role landing
-- Citizen request detail with timeline
-- Staff queue + case actions
-- Supervisor dashboard
-- Admin audit log
+![Login with demo role accounts](docs/screenshots/01-login.png)
 
-## Azure deploy (planned)
+![Citizen request detail with status timeline](docs/screenshots/02-citizen-request-detail.png)
 
-MVP definition of done includes Azure SQL + App Service API + hosted frontend. Bicep and deploy workflow are still to come. When present, configure:
+![Staff work queue](docs/screenshots/03-staff-queue.png)
 
-- `ConnectionStrings__CivicFlow`
-- `Jwt__Issuer`, `Jwt__Audience`, `Jwt__SigningKey`, `Jwt__ExpiryMinutes`
+![Staff case actions](docs/screenshots/04-staff-case-actions.png)
+
+![Supervisor dashboard](docs/screenshots/05-supervisor-dashboard.png)
+
+![Admin audit log](docs/screenshots/06-admin-audit-log.png)
+
+## Azure deploy
+
+Infrastructure as code lives in `infra/main.bicep`; application deployment runs from
+`.github/workflows/azure-deploy.yml` (manual `workflow_dispatch` only).
+
+> **Status:** IaC and the deploy workflow are in the repo. There is no live public URL yet. Use this
+> as the runbook when you have a subscription; reviewers can read the template without a running app.
+
+### What gets provisioned
+
+| Resource | Purpose |
+|---|---|
+| Azure SQL logical server + `CivicFlow` database (Basic tier) | Application data |
+| SQL firewall rule `AllowAllWindowsAzureIps` | Lets App Service outbound IPs reach the database |
+| Linux App Service plan (B1) | Hosts both apps |
+| App Service `app-civicflow-api-*` (`DOTNETCORE\|9.0`) | The API |
+| App Service `app-civicflow-web-*` (`NODE\|20-lts`) | Serves the built SPA via `pm2 serve --spa` |
+
+Names get a `uniqueString(resourceGroup().id)` suffix so they are globally unique. The API and
+frontend are separate origins, so the API is given `Cors__AllowedOrigin` pointing at the frontend
+App Service, and the frontend is built with `VITE_API_BASE_URL` pointing at the API App Service.
+
+API app settings written by the template: `ASPNETCORE_ENVIRONMENT=Production`, `ASPNETCORE_URLS`,
+`ConnectionStrings__CivicFlow`, `Jwt__Issuer`, `Jwt__Audience`, `Jwt__SigningKey`,
+`Jwt__ExpiryMinutes`, `Cors__AllowedOrigin`. The API migrates and seeds on startup, so there is no
+separate migration step.
+
+### 1. Provision infrastructure
+
+```powershell
+az login
+az account set --subscription "<subscription-id-or-name>"
+az group create --name rg-civicflow-mvp --location eastus
+
+az deployment group create `
+  --resource-group rg-civicflow-mvp `
+  --template-file infra/main.bicep `
+  --parameters sqlAdminLogin=civicflowadmin `
+               sqlAdminPassword="<strong-password>" `
+               jwtSigningKey="<random-32+-char-key>" `
+               location=eastus
+```
+
+Record the outputs — `apiAppName`, `webAppName`, `apiBaseUrl`, `webBaseUrl` — they are the inputs to
+the deploy workflow:
+
+```powershell
+az deployment group show --resource-group rg-civicflow-mvp --name main --query properties.outputs
+```
+
+### 2. Grant GitHub Actions access
+
+Create a service principal scoped to the resource group and store the JSON as the repository secret
+`AZURE_CREDENTIALS`:
+
+```powershell
+az ad sp create-for-rbac --name civicflow-deploy --role contributor `
+  --scopes /subscriptions/<subscription-id>/resourceGroups/rg-civicflow-mvp `
+  --sdk-auth
+```
+
+### 3. Deploy the apps
+
+Run the **Azure deploy** workflow (`workflow_dispatch`) with `api_app_name`, `web_app_name`, and
+`api_base_url` from the Bicep outputs. It publishes the API, waits for `/health`, then builds the
+frontend with `VITE_API_BASE_URL=<api_base_url>` and deploys `frontend/dist`.
+
+To publish the API without GitHub Actions:
+
+```powershell
+dotnet publish src/CivicFlow.Api/CivicFlow.Api.csproj -c Release -o publish
+Compress-Archive -Path publish/* -DestinationPath api.zip -Force
+az webapp deploy --resource-group rg-civicflow-mvp --name <apiAppName> --src-path api.zip --type zip
+```
+
+### 4. Verify (after you provision)
+
+1. `GET <apiBaseUrl>/health` returns `200` with `{ "status": "ok" }`
+2. Sign in at `<webBaseUrl>` as `employee@civicflow.local`
+3. Move one case through a status transition and confirm it appears in the case's status history
 
 ## Phase 2 (explicit non-goals for this MVP)
 
@@ -179,14 +279,12 @@ Not implemented / not claimed:
 
 ## Resume talking points (factual)
 
-After full MVP (UI + Docker + CI + Azure):
-
 - Designed a government-style case workflow with enforced state transitions and auditability
 - Implemented ASP.NET Core clean architecture with JWT RBAC and resource-level authorization
 - Delivered React portals for citizen, staff, and admin personas against a REST API
-- Packaged local Docker run and cloud deployment for interview demos
+- Packaged local Docker Compose, GitHub Actions CI, and Azure Bicep (App Service + Azure SQL) for a repeatable deploy
 
-Until those delivery pieces land, claim only what is listed under **Current status → Done**.
+Do not claim a live Azure URL, Entra ID, Blob, SLA, Power BI, or RAG.
 
 ## License
 
