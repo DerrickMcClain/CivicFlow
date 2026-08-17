@@ -112,3 +112,70 @@ export async function login(email: string, password: string): Promise<AuthUser> 
     body: JSON.stringify({ email, password }),
   })
 }
+
+export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
+  const headers = new Headers()
+  const token = getStoredToken()
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+
+  const response = await fetch(resolveUrl(path), {
+    method: 'POST',
+    body: formData,
+    headers,
+  })
+
+  if (!response.ok) {
+    let message = `Request failed (${response.status})`
+    try {
+      const body = await response.json()
+      if (typeof body?.message === 'string') {
+        message = body.message
+      }
+    } catch {
+      // keep default message
+    }
+    throw new ApiError(response.status, message)
+  }
+
+  return (await response.json()) as T
+}
+
+export async function downloadDocument(
+  requestId: number,
+  documentId: number,
+  fileName: string,
+): Promise<void> {
+  const headers = new Headers()
+  const token = getStoredToken()
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+
+  const response = await fetch(
+    resolveUrl(`/api/requests/${requestId}/documents/${documentId}`),
+    { headers },
+  )
+
+  if (!response.ok) {
+    let message = `Download failed (${response.status})`
+    try {
+      const body = await response.json()
+      if (typeof body?.message === 'string') {
+        message = body.message
+      }
+    } catch {
+      // keep default message
+    }
+    throw new ApiError(response.status, message)
+  }
+
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = fileName
+  anchor.click()
+  URL.revokeObjectURL(url)
+}

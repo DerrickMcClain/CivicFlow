@@ -33,6 +33,16 @@ export type StatusHistoryItem = {
   changedAt: string
 }
 
+export type DocumentItem = {
+  documentId: number
+  fileName: string
+  contentType: string
+  sizeBytes: number
+  uploadedByName: string
+  uploadedAt: string
+  isInternal: boolean
+}
+
 export type ServiceRequestDetail = {
   requestId: number
   requestNumber: string
@@ -47,6 +57,7 @@ export type ServiceRequestDetail = {
   submittedAt?: string | null
   completedAt?: string | null
   notes: NoteItem[]
+  documents: DocumentItem[]
   history: StatusHistoryItem[]
 }
 

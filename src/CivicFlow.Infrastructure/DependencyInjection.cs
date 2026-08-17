@@ -1,6 +1,7 @@
 using CivicFlow.Application.Abstractions;
 using CivicFlow.Domain.Entities;
 using CivicFlow.Infrastructure.Seed;
+using CivicFlow.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -25,6 +26,16 @@ public static class DependencyInjection
         services.AddScoped<IAuditLogger, AuditLogger>();
         services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
         services.AddScoped<DbSeeder>();
+
+        var blobConnectionString = configuration["BlobStorage:ConnectionString"];
+        if (!string.IsNullOrWhiteSpace(blobConnectionString))
+        {
+            services.AddSingleton<IFileStorage, AzureBlobFileStorage>();
+        }
+        else
+        {
+            services.AddSingleton<IFileStorage, LocalFileStorage>();
+        }
 
         return services;
     }

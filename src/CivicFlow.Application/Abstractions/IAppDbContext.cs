@@ -13,6 +13,7 @@ public interface IAppDbContext
     DbSet<ServiceRequest> ServiceRequests { get; }
     DbSet<RequestStatusHistory> RequestStatusHistories { get; }
     DbSet<CaseNote> CaseNotes { get; }
+    DbSet<RequestDocument> RequestDocuments { get; }
     DbSet<AssignmentHistory> AssignmentHistories { get; }
     DbSet<AuditLog> AuditLogs { get; }
 

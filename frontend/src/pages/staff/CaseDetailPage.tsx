@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { apiFetch, ApiError } from '../../api/client'
 import { priorityLabel, type ServiceRequestDetail } from '../../api/types'
+import { RequestDocumentsSection } from '../../components/RequestDocumentsSection'
 import { useAuth } from '../../auth/AuthContext'
 import { nextStaffStatuses, type StaffAssignee } from './staffWorkflow'
 
@@ -89,6 +90,10 @@ export function CaseDetailPage() {
 
   const transitions = nextStaffStatuses(detail.status, role)
   const canDecide = role === 'Supervisor' && detail.status === 'SupervisorReview'
+  const canUpload =
+    detail.status !== 'Completed' &&
+    detail.status !== 'Cancelled' &&
+    detail.status !== 'Rejected'
 
   return (
     <div className="space-y-8">
@@ -296,6 +301,14 @@ export function CaseDetailPage() {
           </button>
         </form>
       </div>
+
+      <RequestDocumentsSection
+        requestId={detail.requestId}
+        documents={detail.documents}
+        canUpload={canUpload}
+        allowInternal
+        onUpdated={refresh}
+      />
 
       <section className="space-y-3">
         <h2 className="text-2xl text-[var(--civic-navy)]">Notes</h2>

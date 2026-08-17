@@ -1,5 +1,6 @@
 using CivicFlow.Application.Abstractions;
 using CivicFlow.Application.Common;
+using CivicFlow.Application.Documents;
 using CivicFlow.Domain.Entities;
 using CivicFlow.Domain.Enums;
 using CivicFlow.Domain.Workflow;
@@ -488,6 +489,8 @@ public sealed class RequestService(
             .Include(x => x.AssignedEmployee)
             .Include(x => x.Notes)
                 .ThenInclude(x => x.Author)
+            .Include(x => x.Documents)
+                .ThenInclude(x => x.UploadedByUser)
             .Include(x => x.StatusHistory)
                 .ThenInclude(x => x.OldStatus)
             .Include(x => x.StatusHistory)
@@ -541,6 +544,7 @@ public sealed class RequestService(
             SubmittedAt = request.SubmittedAt,
             CompletedAt = request.CompletedAt,
             Notes = notes,
+            Documents = DocumentService.MapForDetail(request, includeInternalNotes),
             History = history
         };
     }

@@ -1,5 +1,7 @@
 using CivicFlow.Domain.Enums;
 
+using CivicFlow.Application.Documents;
+
 namespace CivicFlow.Application.Requests;
 
 public sealed class CreateRequestRequest
@@ -78,6 +80,7 @@ public sealed class ServiceRequestDetailDto
     public DateTime? SubmittedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
     public IReadOnlyList<NoteDto> Notes { get; set; } = [];
+    public IReadOnlyList<DocumentDto> Documents { get; set; } = [];
     public IReadOnlyList<StatusHistoryDto> History { get; set; } = [];
 }
 

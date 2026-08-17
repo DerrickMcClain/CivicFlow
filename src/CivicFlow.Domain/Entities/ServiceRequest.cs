@@ -24,4 +24,5 @@ public class ServiceRequest
     public ICollection<RequestStatusHistory> StatusHistory { get; set; } = new List<RequestStatusHistory>();
     public ICollection<CaseNote> Notes { get; set; } = new List<CaseNote>();
     public ICollection<AssignmentHistory> Assignments { get; set; } = new List<AssignmentHistory>();
+    public ICollection<RequestDocument> Documents { get; set; } = new List<RequestDocument>();
 }

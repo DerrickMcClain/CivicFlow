@@ -15,6 +15,7 @@ public class CivicFlowDbContext(DbContextOptions<CivicFlowDbContext> options)
     public DbSet<ServiceRequest> ServiceRequests => Set<ServiceRequest>();
     public DbSet<RequestStatusHistory> RequestStatusHistories => Set<RequestStatusHistory>();
     public DbSet<CaseNote> CaseNotes => Set<CaseNote>();
+    public DbSet<RequestDocument> RequestDocuments => Set<RequestDocument>();
     public DbSet<AssignmentHistory> AssignmentHistories => Set<AssignmentHistory>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
@@ -141,6 +142,24 @@ public class CivicFlowDbContext(DbContextOptions<CivicFlowDbContext> options)
             entity.HasOne(x => x.Author)
                 .WithMany()
                 .HasForeignKey(x => x.AuthorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<RequestDocument>(entity =>
+        {
+            entity.HasKey(x => x.DocumentId);
+            entity.Property(x => x.FileName).HasMaxLength(255).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.StorageKey).HasMaxLength(512).IsRequired();
+            entity.HasIndex(x => x.StorageKey).IsUnique();
+            entity.HasIndex(x => x.RequestId);
+            entity.HasOne(x => x.Request)
+                .WithMany(x => x.Documents)
+                .HasForeignKey(x => x.RequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.UploadedByUser)
+                .WithMany()
+                .HasForeignKey(x => x.UploadedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

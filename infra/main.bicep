@@ -37,6 +37,36 @@ var sqlDatabaseName = 'CivicFlow'
 // Built from the deterministic site name rather than webApp.properties.defaultHostName so the API
 // can be given the frontend origin for CORS without creating a circular resource dependency.
 var frontendOrigin = 'https://${webAppName}.azurewebsites.net'
+var storageAccountName = 'st${take(replace(uniqueString(resourceGroup().id, '-', ''), '0', ''), 20)}'
+
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
+  name: storageAccountName
+  location: location
+  sku: {
+    name: 'Standard_LRS'
+  }
+  kind: 'StorageV2'
+  properties: {
+    minimumTlsVersion: 'TLS1_2'
+    allowBlobPublicAccess: false
+    supportsHttpsTrafficOnly: true
+  }
+}
+
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' = {
+  parent: storageAccount
+  name: 'default'
+}
+
+resource documentsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'civicflow-documents'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+var blobConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
 
 resource sqlServer 'Microsoft.Sql/servers@2023-08-01' = {
   name: sqlServerName
@@ -153,6 +183,14 @@ resource apiApp 'Microsoft.Web/sites@2023-12-01' = {
           value: azureAdAudience
         }
         {
+          name: 'BlobStorage__ConnectionString'
+          value: blobConnectionString
+        }
+        {
+          name: 'BlobStorage__ContainerName'
+          value: 'civicflow-documents'
+        }
+        {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
           value: 'false'
         }
@@ -162,6 +200,7 @@ resource apiApp 'Microsoft.Web/sites@2023-12-01' = {
   dependsOn: [
     sqlDatabase
     allowAzureServices
+    documentsContainer
   ]
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { apiFetch, ApiError } from '../../api/client'
 import { priorityLabel, type ServiceRequestDetail } from '../../api/types'
+import { RequestDocumentsSection } from '../../components/RequestDocumentsSection'
 
 export function RequestDetailPage() {
   const { id } = useParams()
@@ -69,6 +70,18 @@ export function RequestDetailPage() {
   }
 
   const canRespond = detail.status === 'AdditionalInfoRequired'
+  const canUpload =
+    detail.status !== 'Completed' &&
+    detail.status !== 'Cancelled' &&
+    detail.status !== 'Rejected'
+
+  async function reloadDetail() {
+    if (!id) {
+      return
+    }
+    const data = await apiFetch<ServiceRequestDetail>(`/api/requests/${id}`)
+    setDetail(data)
+  }
 
   return (
     <div className="space-y-8">
@@ -129,6 +142,13 @@ export function RequestDetailPage() {
       ) : null}
 
       {error ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+
+      <RequestDocumentsSection
+        requestId={detail.requestId}
+        documents={detail.documents}
+        canUpload={canUpload}
+        onUpdated={reloadDetail}
+      />
 
       <section className="space-y-3">
         <h2 className="text-2xl text-[var(--civic-navy)]">Public notes</h2>

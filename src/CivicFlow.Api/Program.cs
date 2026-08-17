@@ -5,6 +5,7 @@ using CivicFlow.Application.Abstractions;
 using CivicFlow.Application.Admin;
 using CivicFlow.Application.Auth;
 using CivicFlow.Application.Catalog;
+using CivicFlow.Application.Documents;
 using CivicFlow.Application.Requests;
 using CivicFlow.Infrastructure;
 using CivicFlow.Infrastructure.Seed;
@@ -15,6 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCivicFlowInfrastructure(builder.Configuration);
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<RequestService>();
+builder.Services.AddScoped<DocumentService>();
 builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddControllers()

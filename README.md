@@ -69,6 +69,7 @@ Microsoft Entra ID is supported as an **optional dual-mode** sign-in (see [Optio
 - Health endpoint + standard error envelope `{ status, message, traceId }`
 - React shell: login, JWT storage, role-gated routes
 - Optional Microsoft Entra ID (MSAL SPA + dual JwtBearer API + app roles)
+- Document attachments with dual-mode storage (local disk / Azure Blob)
 - Citizen portal: my requests, submit Residential Permit, request detail + timeline
 - Staff / supervisor UI: work queue, case actions, supervisor dashboard
 - Admin UI: users + roles, catalog (departments / request types), audit log
@@ -324,11 +325,31 @@ Single-tenant (`Accounts in this organizational directory only`):
 - Password login for an Entra-provisioned account returns `401 Invalid email or password.` (by design).
 - After MSAL login the SPA calls `GET /api/auth/me` for CivicFlow profile (`userId`, name, role).
 
+## Document storage (dual mode)
+
+CivicFlow attaches files to service requests with metadata in SQL and bytes in **local disk** (Docker/dev)
+or **Azure Blob Storage** (when `BlobStorage:ConnectionString` is set on the API).
+
+| Mode | When | Storage |
+| --- | --- | --- |
+| Local | `BlobStorage:ConnectionString` empty | Files under `BlobStorage:LocalRoot` (default `./data/documents`) |
+| Azure Blob | Connection string configured | Container `BlobStorage:ContainerName` (default `civicflow-documents`) |
+
+Allowed types: PDF, JPEG, PNG, TXT, DOC, DOCX — max **10 MB** per file, **10 files** per request.
+
+- Citizens upload public documents on their own open cases.
+- Staff can upload public or **internal** documents (hidden from citizens).
+- Closed cases (`Completed`, `Cancelled`, `Rejected`) reject new uploads.
+- `GET /api/requests/{id}` includes a `documents` list; download via
+  `GET /api/requests/{id}/documents/{documentId}`.
+
+Docker Compose mounts a `civicflow-docs` volume at `/data/documents`. The Bicep template provisions a
+Storage Account and wires `BlobStorage__ConnectionString` to the API App Service.
+
 ## Phase 2 (remaining non-goals)
 
 Not implemented / not claimed:
 
-- Document upload / Blob storage
 - Email or push notifications
 - SLA timers
 - Power BI dashboards
@@ -342,8 +363,9 @@ Not implemented / not claimed:
 - Delivered React portals for citizen, staff, and admin personas against a REST API
 - Packaged local Docker Compose, GitHub Actions CI, and Azure Bicep (App Service + Azure SQL) for a repeatable deploy
 - Optional Entra ID dual-mode (MSAL SPA + JwtBearer API + app roles); local seeded JWT unchanged when unset
+- Optional document attachments with dual-mode storage (local disk or Azure Blob)
 
-Do not claim: a live Azure URL, a verified Entra tenant, Blob, SLA, Power BI, or RAG.
+Do not claim: a live Azure URL, a verified Entra tenant, SLA, Power BI, or RAG.
 
 ## License
 
