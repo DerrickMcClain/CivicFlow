@@ -1,4 +1,5 @@
 using CivicFlow.Application.Common;
+using CivicFlow.Application.Documents;
 using CivicFlow.Application.Requests;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,7 @@ namespace CivicFlow.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/requests")]
-public class RequestsController(RequestService requests) : ControllerBase
+public class RequestsController(RequestService requests, DocumentService documents) : ControllerBase
 {
     [HttpPost]
     [Authorize(Roles = "Citizen")]
@@ -53,6 +54,63 @@ public class RequestsController(RequestService requests) : ControllerBase
                 CurrentUser.GetRole(User),
                 cancellationToken);
             return Ok(detail);
+        }
+        catch (AppException ex)
+        {
+            return Map(ex);
+        }
+    }
+
+    [HttpPost("{id:int}/documents")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<ActionResult<DocumentDto>> UploadDocument(
+        int id,
+        IFormFile file,
+        [FromForm] bool isInternal = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new { status = 400, message = "A file is required." });
+        }
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var uploaded = await documents.UploadAsync(
+                id,
+                CurrentUser.GetUserId(User),
+                CurrentUser.GetRole(User),
+                file.FileName,
+                file.ContentType,
+                file.Length,
+                stream,
+                isInternal,
+                GetIp(),
+                cancellationToken);
+            return CreatedAtAction(nameof(DownloadDocument), new { id, documentId = uploaded.DocumentId }, uploaded);
+        }
+        catch (AppException ex)
+        {
+            return Map(ex);
+        }
+    }
+
+    [HttpGet("{id:int}/documents/{documentId:int}")]
+    public async Task<IActionResult> DownloadDocument(
+        int id,
+        int documentId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var download = await documents.DownloadAsync(
+                id,
+                documentId,
+                CurrentUser.GetUserId(User),
+                CurrentUser.GetRole(User),
+                cancellationToken);
+            return File(download.Content, download.ContentType, download.FileName);
         }
         catch (AppException ex)
         {

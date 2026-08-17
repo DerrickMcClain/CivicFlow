@@ -17,6 +17,7 @@ public class ServiceRequest
     public DateTime UpdatedAt { get; set; }
     public DateTime? SubmittedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
+    public DateTime? SlaDueAt { get; set; }
     public User Citizen { get; set; } = null!;
     public ServiceRequestType RequestType { get; set; } = null!;
     public User? AssignedEmployee { get; set; }
@@ -24,4 +25,5 @@ public class ServiceRequest
     public ICollection<RequestStatusHistory> StatusHistory { get; set; } = new List<RequestStatusHistory>();
     public ICollection<CaseNote> Notes { get; set; } = new List<CaseNote>();
     public ICollection<AssignmentHistory> Assignments { get; set; } = new List<AssignmentHistory>();
+    public ICollection<RequestDocument> Documents { get; set; } = new List<RequestDocument>();
 }

@@ -15,6 +15,9 @@ public class CivicFlowDbContext(DbContextOptions<CivicFlowDbContext> options)
     public DbSet<ServiceRequest> ServiceRequests => Set<ServiceRequest>();
     public DbSet<RequestStatusHistory> RequestStatusHistories => Set<RequestStatusHistory>();
     public DbSet<CaseNote> CaseNotes => Set<CaseNote>();
+    public DbSet<RequestDocument> RequestDocuments => Set<RequestDocument>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<PolicyArticle> PolicyArticles => Set<PolicyArticle>();
     public DbSet<AssignmentHistory> AssignmentHistories => Set<AssignmentHistory>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
@@ -105,6 +108,29 @@ public class CivicFlowDbContext(DbContextOptions<CivicFlowDbContext> options)
                 .WithMany()
                 .HasForeignKey(x => x.StatusId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(x => x.SlaDueAt);
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(x => x.NotificationId);
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Message).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.LinkPath).HasMaxLength(256);
+            entity.HasIndex(x => new { x.UserId, x.CreatedAt });
+            entity.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PolicyArticle>(entity =>
+        {
+            entity.HasKey(x => x.PolicyArticleId);
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Summary).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.Body).IsRequired();
+            entity.Property(x => x.Keywords).HasMaxLength(500).IsRequired();
         });
 
         modelBuilder.Entity<RequestStatusHistory>(entity =>
@@ -141,6 +167,24 @@ public class CivicFlowDbContext(DbContextOptions<CivicFlowDbContext> options)
             entity.HasOne(x => x.Author)
                 .WithMany()
                 .HasForeignKey(x => x.AuthorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<RequestDocument>(entity =>
+        {
+            entity.HasKey(x => x.DocumentId);
+            entity.Property(x => x.FileName).HasMaxLength(255).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.StorageKey).HasMaxLength(512).IsRequired();
+            entity.HasIndex(x => x.StorageKey).IsUnique();
+            entity.HasIndex(x => x.RequestId);
+            entity.HasOne(x => x.Request)
+                .WithMany(x => x.Documents)
+                .HasForeignKey(x => x.RequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.UploadedByUser)
+                .WithMany()
+                .HasForeignKey(x => x.UploadedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

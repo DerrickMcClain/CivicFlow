@@ -1,5 +1,7 @@
 using CivicFlow.Application.Abstractions;
 using CivicFlow.Application.Common;
+using CivicFlow.Application.Documents;
+using CivicFlow.Application.Notifications;
 using CivicFlow.Domain.Entities;
 using CivicFlow.Domain.Enums;
 using CivicFlow.Domain.Workflow;
@@ -10,7 +12,8 @@ namespace CivicFlow.Application.Requests;
 public sealed class RequestService(
     IAppDbContext db,
     IRequestNumberGenerator numbers,
-    IAuditLogger audit)
+    IAuditLogger audit,
+    NotificationService notifications)
 {
     public async Task<ServiceRequestDetailDto> CreateAsync(
         int citizenId,
@@ -44,7 +47,8 @@ public sealed class RequestService(
             Priority = dto.Priority == 0 ? Priority.Medium : dto.Priority,
             CreatedAt = now,
             UpdatedAt = now,
-            SubmittedAt = now
+            SubmittedAt = now,
+            SlaDueAt = SlaPolicy.ComputeDueAt(dto.Priority == 0 ? Priority.Medium : dto.Priority, now)
         };
         request.StatusHistory.Add(new RequestStatusHistory
         {
@@ -86,7 +90,14 @@ public sealed class RequestService(
                 Status = x.Status.StatusName.ToString(),
                 Priority = x.Priority,
                 CreatedAt = x.CreatedAt,
-                SubmittedAt = x.SubmittedAt
+                SubmittedAt = x.SubmittedAt,
+                SlaDueAt = x.SlaDueAt,
+                IsSlaOverdue = x.SlaDueAt != null
+                    && x.Status.StatusName != RequestStatusName.Completed
+                    && x.Status.StatusName != RequestStatusName.Cancelled
+                    && x.Status.StatusName != RequestStatusName.Approved
+                    && x.Status.StatusName != RequestStatusName.Rejected
+                    && x.SlaDueAt < DateTime.UtcNow
             })
             .ToListAsync(cancellationToken);
     }
@@ -174,6 +185,14 @@ public sealed class RequestService(
             cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
+        await notifications.NotifyCitizenStatusAsync(
+            request.CitizenId,
+            request.RequestNumber,
+            request.RequestId,
+            RequestStatusName.UnderReview,
+            null,
+            cancellationToken);
+
         return await GetAsync(request.RequestId, citizenId, RoleName.Citizen, cancellationToken);
     }
 
@@ -229,6 +248,20 @@ public sealed class RequestService(
             ip,
             cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+
+        if (to is RequestStatusName.AdditionalInfoRequired
+            or RequestStatusName.Approved
+            or RequestStatusName.Rejected
+            or RequestStatusName.Completed)
+        {
+            await notifications.NotifyCitizenStatusAsync(
+                request.CitizenId,
+                request.RequestNumber,
+                request.RequestId,
+                to,
+                reason,
+                cancellationToken);
+        }
 
         return await GetAsync(request.RequestId, actorId, role, cancellationToken);
     }
@@ -326,6 +359,12 @@ public sealed class RequestService(
             cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
+        await notifications.NotifyCaseAssignedAsync(
+            assignee.UserId,
+            request.RequestNumber,
+            request.RequestId,
+            cancellationToken);
+
         return await GetAsync(request.RequestId, actorId, role, cancellationToken);
     }
 
@@ -365,7 +404,14 @@ public sealed class RequestService(
                 Status = x.Status.StatusName.ToString(),
                 Priority = x.Priority,
                 CreatedAt = x.CreatedAt,
-                SubmittedAt = x.SubmittedAt
+                SubmittedAt = x.SubmittedAt,
+                SlaDueAt = x.SlaDueAt,
+                IsSlaOverdue = x.SlaDueAt != null
+                    && x.Status.StatusName != RequestStatusName.Completed
+                    && x.Status.StatusName != RequestStatusName.Cancelled
+                    && x.Status.StatusName != RequestStatusName.Approved
+                    && x.Status.StatusName != RequestStatusName.Rejected
+                    && x.SlaDueAt < DateTime.UtcNow
             })
             .ToListAsync(cancellationToken);
     }
@@ -460,6 +506,7 @@ public sealed class RequestService(
         CancellationToken cancellationToken = default)
     {
         var agingCutoff = DateTime.UtcNow.AddDays(-7);
+        var now = DateTime.UtcNow;
 
         return new SupervisorDashboardDto
         {
@@ -467,7 +514,15 @@ public sealed class RequestService(
             CompletedCount = await db.ServiceRequests.CountAsync(
                 x => x.Status.StatusName == RequestStatusName.Completed, cancellationToken),
             AgingOverSevenDaysCount = await db.ServiceRequests.CountAsync(
-                x => !x.Status.IsTerminal && x.CreatedAt < agingCutoff, cancellationToken)
+                x => !x.Status.IsTerminal && x.CreatedAt < agingCutoff, cancellationToken),
+            SlaBreachedCount = await db.ServiceRequests.CountAsync(
+                x => x.SlaDueAt != null
+                    && x.Status.StatusName != RequestStatusName.Completed
+                    && x.Status.StatusName != RequestStatusName.Cancelled
+                    && x.Status.StatusName != RequestStatusName.Approved
+                    && x.Status.StatusName != RequestStatusName.Rejected
+                    && x.SlaDueAt < now,
+                cancellationToken)
         };
     }
 
@@ -488,6 +543,8 @@ public sealed class RequestService(
             .Include(x => x.AssignedEmployee)
             .Include(x => x.Notes)
                 .ThenInclude(x => x.Author)
+            .Include(x => x.Documents)
+                .ThenInclude(x => x.UploadedByUser)
             .Include(x => x.StatusHistory)
                 .ThenInclude(x => x.OldStatus)
             .Include(x => x.StatusHistory)
@@ -540,7 +597,10 @@ public sealed class RequestService(
             CreatedAt = request.CreatedAt,
             SubmittedAt = request.SubmittedAt,
             CompletedAt = request.CompletedAt,
+            SlaDueAt = request.SlaDueAt,
+            IsSlaOverdue = SlaPolicy.IsOverdue(request.Status.StatusName, request.SlaDueAt),
             Notes = notes,
+            Documents = DocumentService.MapForDetail(request, includeInternalNotes),
             History = history
         };
     }

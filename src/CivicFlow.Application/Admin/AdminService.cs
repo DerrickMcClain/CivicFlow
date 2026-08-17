@@ -2,7 +2,10 @@ using CivicFlow.Application.Abstractions;
 using CivicFlow.Application.Common;
 using CivicFlow.Domain.Entities;
 using CivicFlow.Domain.Enums;
+using CivicFlow.Domain.Workflow;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
+using System.Text;
 
 namespace CivicFlow.Application.Admin;
 
@@ -241,6 +244,36 @@ public sealed class AdminService(IAppDbContext db)
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<byte[]> ExportCasesCsvAsync(CancellationToken cancellationToken = default)
+    {
+        var rows = await db.ServiceRequests
+            .AsNoTracking()
+            .Include(x => x.Status)
+            .Include(x => x.RequestType)
+                .ThenInclude(x => x.Department)
+            .Include(x => x.Citizen)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        var builder = new StringBuilder();
+        builder.AppendLine("RequestNumber,Title,Status,Priority,Department,CitizenEmail,CreatedAt,SlaDueAt,IsSlaOverdue");
+        foreach (var row in rows)
+        {
+            builder.Append(CsvField(row.RequestNumber)).Append(',')
+                .Append(CsvField(row.Title)).Append(',')
+                .Append(CsvField(row.Status.StatusName.ToString())).Append(',')
+                .Append(CsvField(row.Priority.ToString())).Append(',')
+                .Append(CsvField(row.RequestType.Department.DepartmentName)).Append(',')
+                .Append(CsvField(row.Citizen.Email)).Append(',')
+                .Append(CsvField(row.CreatedAt.ToString("O", CultureInfo.InvariantCulture))).Append(',')
+                .Append(CsvField(row.SlaDueAt?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty)).Append(',')
+                .Append(CsvField(SlaPolicy.IsOverdue(row.Status.StatusName, row.SlaDueAt).ToString()))
+                .AppendLine();
+        }
+
+        return Encoding.UTF8.GetBytes(builder.ToString());
+    }
+
     private static AdminUserDto ToUserDto(User user) => new()
     {
         UserId = user.UserId,
@@ -269,4 +302,14 @@ public sealed class AdminService(IAppDbContext db)
         Description = type.Description,
         IsActive = type.IsActive
     };
+
+    private static string CsvField(string value)
+    {
+        if (value.Contains('"') || value.Contains(',') || value.Contains('\n'))
+        {
+            return $"\"{value.Replace("\"", "\"\"")}\"";
+        }
+
+        return value;
+    }
 }

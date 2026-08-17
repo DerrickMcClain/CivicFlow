@@ -102,6 +102,13 @@ export function QueuePage() {
               <div className="text-right text-sm">
                 <p className="font-medium text-[var(--civic-blue)]">{item.status}</p>
                 <p className="text-[var(--civic-navy)]/60">{priorityLabel(item.priority)}</p>
+                {item.isSlaOverdue ? (
+                  <p className="font-semibold text-red-600">SLA overdue</p>
+                ) : item.slaDueAt ? (
+                  <p className="text-[var(--civic-navy)]/60">
+                    Due {new Date(item.slaDueAt).toLocaleDateString()}
+                  </p>
+                ) : null}
               </div>
             </div>
           </Link>

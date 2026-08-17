@@ -29,6 +29,9 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__CivicFlow: "Server=db,1433;Database=CivicFlow;User Id=sa;Password=CivicFlow_Sql!23;TrustServerCertificate=True"
+      BlobStorage__LocalRoot: /data/documents
+    volumes:
+      - civicflow-docs:/data/documents
     depends_on:
       db:
         condition: service_healthy
@@ -44,3 +47,4 @@ services:
 
 volumes:
   civicflow-sql:
+  civicflow-docs:

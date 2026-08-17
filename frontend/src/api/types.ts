@@ -15,6 +15,8 @@ export type ServiceRequestListItem = {
   priority: Priority
   createdAt: string
   submittedAt?: string | null
+  slaDueAt?: string | null
+  isSlaOverdue?: boolean
 }
 
 export type NoteItem = {
@@ -33,6 +35,16 @@ export type StatusHistoryItem = {
   changedAt: string
 }
 
+export type DocumentItem = {
+  documentId: number
+  fileName: string
+  contentType: string
+  sizeBytes: number
+  uploadedByName: string
+  uploadedAt: string
+  isInternal: boolean
+}
+
 export type ServiceRequestDetail = {
   requestId: number
   requestNumber: string
@@ -46,7 +58,10 @@ export type ServiceRequestDetail = {
   createdAt: string
   submittedAt?: string | null
   completedAt?: string | null
+  slaDueAt?: string | null
+  isSlaOverdue?: boolean
   notes: NoteItem[]
+  documents: DocumentItem[]
   history: StatusHistoryItem[]
 }
 

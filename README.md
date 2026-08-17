@@ -69,6 +69,8 @@ Microsoft Entra ID is supported as an **optional dual-mode** sign-in (see [Optio
 - Health endpoint + standard error envelope `{ status, message, traceId }`
 - React shell: login, JWT storage, role-gated routes
 - Optional Microsoft Entra ID (MSAL SPA + dual JwtBearer API + app roles)
+- Document attachments with dual-mode storage (local disk / Azure Blob)
+- SLA timers, in-app notifications, policy search assistant, admin CSV export, optional App Insights
 - Citizen portal: my requests, submit Residential Permit, request detail + timeline
 - Staff / supervisor UI: work queue, case actions, supervisor dashboard
 - Admin UI: users + roles, catalog (departments / request types), audit log
@@ -324,16 +326,49 @@ Single-tenant (`Accounts in this organizational directory only`):
 - Password login for an Entra-provisioned account returns `401 Invalid email or password.` (by design).
 - After MSAL login the SPA calls `GET /api/auth/me` for CivicFlow profile (`userId`, name, role).
 
-## Phase 2 (remaining non-goals)
+## Document storage (dual mode)
+
+CivicFlow attaches files to service requests with metadata in SQL and bytes in **local disk** (Docker/dev)
+or **Azure Blob Storage** (when `BlobStorage:ConnectionString` is set on the API).
+
+| Mode | When | Storage |
+| --- | --- | --- |
+| Local | `BlobStorage:ConnectionString` empty | Files under `BlobStorage:LocalRoot` (default `./data/documents`) |
+| Azure Blob | Connection string configured | Container `BlobStorage:ContainerName` (default `civicflow-documents`) |
+
+Allowed types: PDF, JPEG, PNG, TXT, DOC, DOCX — max **10 MB** per file, **10 files** per request.
+
+- Citizens upload public documents on their own open cases.
+- Staff can upload public or **internal** documents (hidden from citizens).
+- Closed cases (`Completed`, `Cancelled`, `Rejected`) reject new uploads.
+- `GET /api/requests/{id}` includes a `documents` list; download via
+  `GET /api/requests/{id}/documents/{documentId}`.
+
+Docker Compose mounts a `civicflow-docs` volume at `/data/documents`. The Bicep template provisions a
+Storage Account and wires `BlobStorage__ConnectionString` to the API App Service.
+
+## Phase 2 complete
+
+Phase 2 adds optional enterprise patterns on top of the MVP:
+
+| Feature | Behavior |
+| --- | --- |
+| Entra ID | Dual-mode MSAL + JwtBearer (see above) |
+| Documents | Local disk or Azure Blob attachments |
+| SLA timers | Priority-based due dates; overdue surfaced in queue and supervisor dashboard |
+| Notifications | In-app alerts + logged email (SMTP optional) on assignment and key status changes |
+| Policy assistant | Keyword search over seeded permit FAQ articles (not LLM RAG) |
+| Reporting | Admin CSV export for Power BI / Excel; Bicep includes Storage + Application Insights |
+| Observability | Application Insights when `APPLICATIONINSIGHTS_CONNECTION_STRING` is set |
+
+## Out of scope (future)
 
 Not implemented / not claimed:
 
-- Document upload / Blob storage
-- Email or push notifications
-- SLA timers
-- Power BI dashboards
-- RAG / policy assistant
-- Application Insights / Key Vault hardening
+- Live LLM / RAG over dynamic policy corpora
+- Native Power BI embedded dashboards
+- Push/mobile notifications
+- Key Vault secret references (App Service settings used directly)
 
 ## Resume talking points (factual)
 
@@ -342,8 +377,10 @@ Not implemented / not claimed:
 - Delivered React portals for citizen, staff, and admin personas against a REST API
 - Packaged local Docker Compose, GitHub Actions CI, and Azure Bicep (App Service + Azure SQL) for a repeatable deploy
 - Optional Entra ID dual-mode (MSAL SPA + JwtBearer API + app roles); local seeded JWT unchanged when unset
+- Optional document attachments with dual-mode storage (local disk or Azure Blob)
+- SLA tracking, in-app/email notifications, policy search assistant, CSV reporting, and optional Application Insights
 
-Do not claim: a live Azure URL, a verified Entra tenant, Blob, SLA, Power BI, or RAG.
+Do not claim: a live Azure URL, a verified Entra tenant, live LLM RAG, embedded Power BI, or push notifications.
 
 ## License
 
