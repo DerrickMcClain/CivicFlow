@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using CivicFlow.Api.Middleware;
 using CivicFlow.Application.Abstractions;
 using CivicFlow.Application.Admin;
 using CivicFlow.Application.Auth;
@@ -22,6 +23,8 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var jwt = builder.Configuration.GetSection("Jwt");
 var signingKey = jwt["SigningKey"]
@@ -53,9 +56,13 @@ using (var scope = app.Services.CreateScope())
     await scope.ServiceProvider.GetRequiredService<DbSeeder>().SeedAsync();
 }
 
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
