@@ -1,4 +1,7 @@
 const TOKEN_KEY = 'civicflow.token'
+export const AUTH_SOURCE_KEY = 'civicflow.authSource'
+
+export type AuthSource = 'local' | 'entra'
 
 // Empty for local dev and the Docker/nginx stack, which are same-origin. Split hosting (Azure)
 // sets VITE_API_BASE_URL at build time to the API's public origin.
@@ -40,6 +43,32 @@ export function setStoredToken(token: string | null) {
   } else {
     localStorage.removeItem(TOKEN_KEY)
   }
+}
+
+export function getAuthSource(): AuthSource | null {
+  const value = localStorage.getItem(AUTH_SOURCE_KEY)
+  if (value === 'local' || value === 'entra') {
+    return value
+  }
+  return null
+}
+
+export function setAuthSource(source: AuthSource | null) {
+  if (source) {
+    localStorage.setItem(AUTH_SOURCE_KEY, source)
+  } else {
+    localStorage.removeItem(AUTH_SOURCE_KEY)
+  }
+}
+
+export async function fetchCurrentUser(): Promise<AuthUser> {
+  const token = getStoredToken()
+  if (!token) {
+    throw new ApiError(401, 'Authentication is required.')
+  }
+
+  const profile = await apiFetch<Omit<AuthUser, 'token'>>('/api/auth/me')
+  return { ...profile, token }
 }
 
 export async function apiFetch<T>(

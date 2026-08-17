@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { ApiError } from '../api/client'
 import { homePathForRole, useAuth } from '../auth/AuthContext'
+import { isEntraConfigured } from '../auth/msal'
 
 const DEMO_PASSWORD = 'CivicFlow!dev1'
 
@@ -33,7 +34,8 @@ const DEMO_ACCOUNTS = [
 ] as const
 
 export function LoginPage() {
-  const { user, login } = useAuth()
+  const { user, login, loginWithMicrosoft } = useAuth()
+  const entraEnabled = isEntraConfigured()
   const navigate = useNavigate()
   const [email, setEmail] = useState('citizen@civicflow.local')
   const [password, setPassword] = useState(DEMO_PASSWORD)
@@ -60,6 +62,19 @@ export function LoginPage() {
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     await signIn(email, password)
+  }
+
+  async function onMicrosoftSignIn() {
+    setBusy(true)
+    setError(null)
+    try {
+      const auth = await loginWithMicrosoft()
+      navigate(homePathForRole(auth.role), { replace: true })
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Unable to sign in with Microsoft.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -101,6 +116,17 @@ export function LoginPage() {
               <span className="font-semibold">{DEMO_PASSWORD}</span>
             </p>
           </div>
+
+          {entraEnabled ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void onMicrosoftSignIn()}
+              className="w-full rounded-lg border border-[var(--civic-line)] bg-white px-4 py-3 font-semibold text-[var(--civic-navy)] transition hover:border-[var(--civic-blue)] hover:bg-[var(--civic-sky)]/30 disabled:opacity-60"
+            >
+              Sign in with Microsoft
+            </button>
+          ) : null}
 
           <div className="grid gap-2">
             {DEMO_ACCOUNTS.map((account) => (
