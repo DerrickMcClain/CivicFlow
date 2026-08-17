@@ -17,21 +17,6 @@ on:
         description: "Public API base URL (Bicep output apiBaseUrl), e.g. https://app-civicflow-api-xxxx.azurewebsites.net"
         required: true
         type: string
-      vite_entra_client_id:
-        description: "Optional SPA Entra client ID (leave blank for seed login only)"
-        required: false
-        type: string
-        default: ""
-      vite_entra_tenant_id:
-        description: "Optional Entra tenant ID for the SPA build"
-        required: false
-        type: string
-        default: ""
-      vite_entra_api_scope:
-        description: "Optional API scope for MSAL, e.g. api://<api-client-id>/access_as_user"
-        required: false
-        type: string
-        default: ""
 
 concurrency:
   group: azure-deploy
@@ -99,9 +84,6 @@ jobs:
         working-directory: frontend
         env:
           VITE_API_BASE_URL: ${{ inputs.api_base_url }}
-          VITE_ENTRA_CLIENT_ID: ${{ inputs.vite_entra_client_id }}
-          VITE_ENTRA_TENANT_ID: ${{ inputs.vite_entra_tenant_id }}
-          VITE_ENTRA_API_SCOPE: ${{ inputs.vite_entra_api_scope }}
         run: npm run build
 
       - name: Azure login
