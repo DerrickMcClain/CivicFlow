@@ -37,4 +37,11 @@ public class EmployeeRequestsController(RequestService requests) : ControllerBas
             });
         }
     }
+
+    [HttpGet("assignees")]
+    public async Task<ActionResult<IReadOnlyList<StaffAssigneeDto>>> Assignees(
+        CancellationToken cancellationToken)
+    {
+        return Ok(await requests.ListAssigneesAsync(cancellationToken));
+    }
 }

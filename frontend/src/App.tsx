@@ -3,11 +3,14 @@ import { AuthProvider, homePathForRole, useAuth } from './auth/AuthContext'
 import { RequireAuth } from './auth/RequireAuth'
 import { AdminHomePage } from './pages/AdminHomePage'
 import { LoginPage } from './pages/LoginPage'
-import { StaffHomePage } from './pages/StaffHomePage'
 import { CitizenLayout } from './pages/citizen/CitizenLayout'
 import { DashboardPage } from './pages/citizen/DashboardPage'
 import { RequestDetailPage } from './pages/citizen/RequestDetailPage'
 import { SubmitRequestPage } from './pages/citizen/SubmitRequestPage'
+import { CaseDetailPage } from './pages/staff/CaseDetailPage'
+import { QueuePage } from './pages/staff/QueuePage'
+import { StaffLayout } from './pages/staff/StaffLayout'
+import { SupervisorDashboardPage } from './pages/staff/SupervisorDashboardPage'
 
 function HomeRedirect() {
   const { user } = useAuth()
@@ -33,7 +36,11 @@ export default function App() {
         </Route>
 
         <Route element={<RequireAuth roles={['Employee', 'Supervisor']} />}>
-          <Route path="/staff/*" element={<StaffHomePage />} />
+          <Route path="/staff" element={<StaffLayout />}>
+            <Route index element={<QueuePage />} />
+            <Route path="dashboard" element={<SupervisorDashboardPage />} />
+            <Route path="requests/:id" element={<CaseDetailPage />} />
+          </Route>
         </Route>
 
         <Route element={<RequireAuth roles={['Administrator']} />}>

@@ -45,6 +45,13 @@ public sealed class SupervisorDashboardDto
     public int AgingOverSevenDaysCount { get; set; }
 }
 
+public sealed class StaffAssigneeDto
+{
+    public int UserId { get; set; }
+    public string DisplayName { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+}
+
 public sealed class ServiceRequestListDto
 {
     public int RequestId { get; set; }

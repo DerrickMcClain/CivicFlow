@@ -370,6 +370,24 @@ public sealed class RequestService(
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<StaffAssigneeDto>> ListAssigneesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await db.Users
+            .AsNoTracking()
+            .Where(x => x.IsActive &&
+                        (x.Role.RoleName == RoleName.Employee || x.Role.RoleName == RoleName.Supervisor))
+            .OrderBy(x => x.LastName)
+            .ThenBy(x => x.FirstName)
+            .Select(x => new StaffAssigneeDto
+            {
+                UserId = x.UserId,
+                DisplayName = x.FirstName + " " + x.LastName,
+                Role = x.Role.RoleName.ToString()
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<ServiceRequestDetailDto> ApproveAsync(
         int requestId,
         int actorId,
