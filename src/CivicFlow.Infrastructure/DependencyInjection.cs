@@ -21,6 +21,7 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString));
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<CivicFlowDbContext>());
         services.AddScoped<IRequestNumberGenerator, RequestNumberGenerator>();
+        services.AddSingleton<IJwtTokenService, JwtTokenService>();
         services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
         services.AddScoped<DbSeeder>();
 
