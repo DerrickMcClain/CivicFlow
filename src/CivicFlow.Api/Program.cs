@@ -4,6 +4,7 @@ using CivicFlow.Api.Middleware;
 using CivicFlow.Application.Abstractions;
 using CivicFlow.Application.Admin;
 using CivicFlow.Application.Auth;
+using CivicFlow.Application.Catalog;
 using CivicFlow.Application.Requests;
 using CivicFlow.Infrastructure;
 using CivicFlow.Infrastructure.Seed;
@@ -17,6 +18,7 @@ builder.Services.AddCivicFlowInfrastructure(builder.Configuration);
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<RequestService>();
 builder.Services.AddScoped<AdminService>();
+builder.Services.AddScoped<CatalogService>();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {

@@ -68,9 +68,10 @@ Microsoft Entra ID is intentionally **Phase 2** (not claimed in this MVP).
 - Admin users, departments, request types, audit logs
 - Health endpoint + standard error envelope `{ status, message, traceId }`
 - React shell: login, JWT storage, role-gated routes
+- Citizen portal: my requests, submit Residential Permit, request detail + timeline
 
 **Next**
-- Citizen / staff / admin UI screens
+- Staff / admin UI screens
 - Docker Compose local stack
 - GitHub Actions CI
 - Azure deployment (MVP definition of done)

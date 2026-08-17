@@ -2,9 +2,12 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, homePathForRole, useAuth } from './auth/AuthContext'
 import { RequireAuth } from './auth/RequireAuth'
 import { AdminHomePage } from './pages/AdminHomePage'
-import { CitizenHomePage } from './pages/CitizenHomePage'
 import { LoginPage } from './pages/LoginPage'
 import { StaffHomePage } from './pages/StaffHomePage'
+import { CitizenLayout } from './pages/citizen/CitizenLayout'
+import { DashboardPage } from './pages/citizen/DashboardPage'
+import { RequestDetailPage } from './pages/citizen/RequestDetailPage'
+import { SubmitRequestPage } from './pages/citizen/SubmitRequestPage'
 
 function HomeRedirect() {
   const { user } = useAuth()
@@ -22,7 +25,11 @@ export default function App() {
         <Route path="/" element={<HomeRedirect />} />
 
         <Route element={<RequireAuth roles={['Citizen']} />}>
-          <Route path="/citizen/*" element={<CitizenHomePage />} />
+          <Route path="/citizen" element={<CitizenLayout />}>
+            <Route index element={<DashboardPage />} />
+            <Route path="new" element={<SubmitRequestPage />} />
+            <Route path="requests/:id" element={<RequestDetailPage />} />
+          </Route>
         </Route>
 
         <Route element={<RequireAuth roles={['Employee', 'Supervisor']} />}>

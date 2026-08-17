@@ -3,11 +3,40 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { ApiError } from '../api/client'
 import { homePathForRole, useAuth } from '../auth/AuthContext'
 
+const DEMO_PASSWORD = 'CivicFlow!dev1'
+
+const DEMO_ACCOUNTS = [
+  {
+    role: 'Citizen',
+    email: 'citizen@civicflow.local',
+    portal: 'Citizen portal',
+    path: '/citizen',
+  },
+  {
+    role: 'Employee',
+    email: 'employee@civicflow.local',
+    portal: 'Staff work queue',
+    path: '/staff',
+  },
+  {
+    role: 'Supervisor',
+    email: 'supervisor@civicflow.local',
+    portal: 'Staff + approvals',
+    path: '/staff',
+  },
+  {
+    role: 'Administrator',
+    email: 'admin@civicflow.local',
+    portal: 'Admin console',
+    path: '/admin',
+  },
+] as const
+
 export function LoginPage() {
   const { user, login } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('citizen@civicflow.local')
-  const [password, setPassword] = useState('CivicFlow!dev1')
+  const [password, setPassword] = useState(DEMO_PASSWORD)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -15,18 +44,22 @@ export function LoginPage() {
     return <Navigate to={homePathForRole(user.role)} replace />
   }
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault()
+  async function signIn(nextEmail: string, nextPassword: string) {
     setBusy(true)
     setError(null)
     try {
-      const auth = await login(email.trim(), password)
+      const auth = await login(nextEmail.trim(), nextPassword)
       navigate(homePathForRole(auth.role), { replace: true })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Unable to sign in.')
     } finally {
       setBusy(false)
     }
+  }
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault()
+    await signIn(email, password)
   }
 
   return (
@@ -46,8 +79,8 @@ export function LoginPage() {
               Case workflow for local government services.
             </h1>
             <p className="text-lg text-[var(--civic-sky)] max-w-md">
-              Submit, review, and approve service requests with enforced status
-              transitions, role-based access, and a full audit trail.
+              Four roles, three portals. Pick a demo account below to open Citizen,
+              Staff, or Admin.
             </p>
           </div>
           <p className="text-sm text-[var(--civic-sky)]">
@@ -64,50 +97,77 @@ export function LoginPage() {
           <div className="space-y-1">
             <h2 className="text-3xl text-[var(--civic-navy)]">Sign in</h2>
             <p className="text-sm text-[var(--civic-navy)]/70">
-              Use a seeded demo account or a registered citizen login.
+              Each account opens a different portal. Password for all demos:{' '}
+              <span className="font-semibold">{DEMO_PASSWORD}</span>
             </p>
           </div>
 
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-[var(--civic-navy)]">Email</span>
-            <input
-              className="w-full rounded-lg border border-[var(--civic-line)] bg-white px-3 py-2.5 outline-none focus:border-[var(--civic-blue)]"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="username"
-              required
-            />
-          </label>
+          <div className="grid gap-2">
+            {DEMO_ACCOUNTS.map((account) => (
+              <button
+                key={account.email}
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setEmail(account.email)
+                  setPassword(DEMO_PASSWORD)
+                  void signIn(account.email, DEMO_PASSWORD)
+                }}
+                className="flex items-center justify-between gap-3 rounded-lg border border-[var(--civic-line)] bg-white px-3 py-2.5 text-left transition hover:border-[var(--civic-blue)] hover:bg-[var(--civic-sky)]/30 disabled:opacity-60"
+              >
+                <span>
+                  <span className="block text-sm font-semibold text-[var(--civic-navy)]">
+                    {account.role}
+                  </span>
+                  <span className="block text-xs text-[var(--civic-navy)]/70">
+                    {account.portal} → {account.path}
+                  </span>
+                </span>
+                <span className="text-xs text-[var(--civic-blue)]">Open</span>
+              </button>
+            ))}
+          </div>
 
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-[var(--civic-navy)]">Password</span>
-            <input
-              className="w-full rounded-lg border border-[var(--civic-line)] bg-white px-3 py-2.5 outline-none focus:border-[var(--civic-blue)]"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              required
-            />
-          </label>
+          <div className="border-t border-[var(--civic-line)] pt-4 space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--civic-navy)]/60">
+              Or sign in manually
+            </p>
 
-          {error ? (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-          ) : null}
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-[var(--civic-navy)]">Email</span>
+              <input
+                className="w-full rounded-lg border border-[var(--civic-line)] bg-white px-3 py-2.5 outline-none focus:border-[var(--civic-blue)]"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="username"
+                required
+              />
+            </label>
 
-          <button
-            type="submit"
-            disabled={busy}
-            className="w-full rounded-lg bg-[var(--civic-navy)] px-4 py-3 font-semibold text-white transition hover:bg-[var(--civic-ink)] disabled:opacity-60"
-          >
-            {busy ? 'Signing in…' : 'Sign in'}
-          </button>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-[var(--civic-navy)]">Password</span>
+              <input
+                className="w-full rounded-lg border border-[var(--civic-line)] bg-white px-3 py-2.5 outline-none focus:border-[var(--civic-blue)]"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+            </label>
 
-          <div className="rounded-lg bg-[var(--civic-sky)]/50 px-3 py-3 text-xs text-[var(--civic-navy)] space-y-1">
-            <p className="font-semibold">Demo users (password: CivicFlow!dev1)</p>
-            <p>citizen@civicflow.local · employee@civicflow.local</p>
-            <p>supervisor@civicflow.local · admin@civicflow.local</p>
+            {error ? (
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={busy}
+              className="w-full rounded-lg bg-[var(--civic-navy)] px-4 py-3 font-semibold text-white transition hover:bg-[var(--civic-ink)] disabled:opacity-60"
+            >
+              {busy ? 'Signing in…' : 'Sign in'}
+            </button>
           </div>
         </form>
       </section>
