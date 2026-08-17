@@ -24,6 +24,11 @@ public sealed class AuthService(
             throw new UnauthorizedException("Invalid email or password.");
         }
 
+        if (!string.IsNullOrEmpty(user.EntraObjectId))
+        {
+            throw new UnauthorizedException("Invalid email or password.");
+        }
+
         var verification = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
         if (verification == PasswordVerificationResult.Failed)
         {
