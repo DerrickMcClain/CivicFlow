@@ -75,9 +75,8 @@ Microsoft Entra ID is intentionally **Phase 2** (not claimed in this MVP).
 - GitHub Actions CI (build, xUnit, frontend build)
 - Azure Bicep template + manual deploy workflow
 
-**Next**
-- Run the Azure deploy against a live subscription and verify `/health`, login, and one status
-  transition (see [Azure deploy](#azure-deploy)) — until then the MVP is not complete
+**Later (optional)**
+- Provision a live Azure subscription and follow [Azure deploy](#azure-deploy) if you want a public demo URL. The Bicep template and GitHub workflow are the Azure deliverable; a running cloud instance is not required to review the project.
 
 ## Local run (dev)
 
@@ -130,6 +129,21 @@ API calls use relative paths by default, which is what local dev and the Docker/
 Set the build-time variable `VITE_API_BASE_URL` only when the frontend is served from a different
 origin than the API (see [Azure deploy](#azure-deploy)).
 
+### 4. Docker Compose (API + SQL Server + UI)
+
+```powershell
+cd C:\Users\derri\Projects\CivicFlow
+docker compose up --build
+```
+
+| Service | URL |
+|---|---|
+| UI | `http://localhost` |
+| API / health | `http://localhost:8080/health` (also `http://localhost/health` through nginx) |
+| SQL Server | `localhost,1433` / `sa` / `CivicFlow_Sql!23` |
+
+The API migrates and seeds on startup. Log in with a seed user below.
+
 ## Seed users (local / demo only)
 
 Password for all seeded accounts: `CivicFlow!dev1`
@@ -156,22 +170,27 @@ Seed catalog: department **Planning & Development**, type **Residential Permit**
 
 ## Screenshots
 
-_Placeholder — add after UI screens ship_
+Captured from the Docker local stack (`http://localhost`).
 
-- Login / role landing
-- Citizen request detail with timeline
-- Staff queue + case actions
-- Supervisor dashboard
-- Admin audit log
+![Login with demo role accounts](docs/screenshots/01-login.png)
+
+![Citizen request detail with status timeline](docs/screenshots/02-citizen-request-detail.png)
+
+![Staff work queue](docs/screenshots/03-staff-queue.png)
+
+![Staff case actions](docs/screenshots/04-staff-case-actions.png)
+
+![Supervisor dashboard](docs/screenshots/05-supervisor-dashboard.png)
+
+![Admin audit log](docs/screenshots/06-admin-audit-log.png)
 
 ## Azure deploy
 
 Infrastructure as code lives in `infra/main.bicep`; application deployment runs from
 `.github/workflows/azure-deploy.yml` (manual `workflow_dispatch` only).
 
-> **Status:** the template and workflow are committed but have **not** been run against a live
-> subscription yet, so no public URLs are published below. Treat this section as the runbook, not as
-> evidence of a running environment.
+> **Status:** IaC and the deploy workflow are in the repo. There is no live public URL yet. Use this
+> as the runbook when you have a subscription; reviewers can read the template without a running app.
 
 ### What gets provisioned
 
@@ -240,13 +259,11 @@ Compress-Archive -Path publish/* -DestinationPath api.zip -Force
 az webapp deploy --resource-group rg-civicflow-mvp --name <apiAppName> --src-path api.zip --type zip
 ```
 
-### 4. Verify (MVP gate)
+### 4. Verify (after you provision)
 
 1. `GET <apiBaseUrl>/health` returns `200` with `{ "status": "ok" }`
 2. Sign in at `<webBaseUrl>` as `employee@civicflow.local`
 3. Move one case through a status transition and confirm it appears in the case's status history
-
-Until steps 1–3 pass against live Azure, the MVP is **not** complete.
 
 ## Phase 2 (explicit non-goals for this MVP)
 
@@ -262,14 +279,12 @@ Not implemented / not claimed:
 
 ## Resume talking points (factual)
 
-After full MVP (UI + Docker + CI + Azure):
-
 - Designed a government-style case workflow with enforced state transitions and auditability
 - Implemented ASP.NET Core clean architecture with JWT RBAC and resource-level authorization
 - Delivered React portals for citizen, staff, and admin personas against a REST API
-- Packaged local Docker run and cloud deployment for interview demos
+- Packaged local Docker Compose, GitHub Actions CI, and Azure Bicep (App Service + Azure SQL) for a repeatable deploy
 
-Until those delivery pieces land, claim only what is listed under **Current status → Done**.
+Do not claim a live Azure URL, Entra ID, Blob, SLA, Power BI, or RAG.
 
 ## License
 
