@@ -81,15 +81,23 @@ Microsoft Entra ID is intentionally **Phase 2** (not claimed in this MVP).
 
 - .NET 9 SDK
 - Node.js 20+
-- SQL Server LocalDB **or** SQL Server on `localhost,1433`
+- SQL Server **LocalDB** (default for local dev) — or SQL Server / Docker on `localhost,1433` later
 
 ### 1. Database connection
 
-Default connection string (API `appsettings.Development.json`):
+Development (`appsettings.Development.json`) uses LocalDB:
 
 ```text
-Server=localhost,1433;Database=CivicFlow;User Id=sa;Password=CivicFlow_Sql!23;TrustServerCertificate=True
+Server=(localdb)\MSSQLLocalDB;Database=CivicFlow;Trusted_Connection=True;TrustServerCertificate=True
 ```
+
+Start LocalDB if needed:
+
+```powershell
+sqllocaldb start MSSQLLocalDB
+```
+
+Docker SQL (`localhost,1433` / `sa` / `CivicFlow_Sql!23`) is for the Compose stack. Azure SQL comes in the Azure deploy task.
 
 Tests default to LocalDB database `CivicFlow_Test` unless `ConnectionStrings__CivicFlow` is set.
 
