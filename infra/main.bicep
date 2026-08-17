@@ -1,6 +1,15 @@
 // CivicFlow MVP hosting: Azure SQL + one Linux App Service plan running the API and the static frontend.
 // Deploy into an existing resource group (rg-civicflow-mvp) with `az deployment group create`.
 
+@description('Optional Entra tenant ID. Leave empty to keep seed JWT only.')
+param azureAdTenantId string = ''
+
+@description('Optional Entra API application (client) ID.')
+param azureAdClientId string = ''
+
+@description('Optional Entra API audience (App ID URI or client ID).')
+param azureAdAudience string = ''
+
 @description('Administrator login for the Azure SQL logical server.')
 @minLength(4)
 param sqlAdminLogin string
@@ -130,6 +139,18 @@ resource apiApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'Cors__AllowedOrigin'
           value: frontendOrigin
+        }
+        {
+          name: 'AzureAd__TenantId'
+          value: azureAdTenantId
+        }
+        {
+          name: 'AzureAd__ClientId'
+          value: azureAdClientId
+        }
+        {
+          name: 'AzureAd__Audience'
+          value: azureAdAudience
         }
         {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'

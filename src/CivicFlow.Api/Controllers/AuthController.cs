@@ -1,5 +1,6 @@
 using CivicFlow.Application.Auth;
 using CivicFlow.Application.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CivicFlow.Api.Controllers;
@@ -20,6 +21,25 @@ public class AuthController(AuthService auth) : ControllerBase
         catch (UnauthorizedException)
         {
             return Unauthorized();
+        }
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<ActionResult<AuthResponse>> Me(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await auth.GetCurrentAsync(CurrentUser.GetUserId(User), cancellationToken));
+        }
+        catch (AppException ex)
+        {
+            return StatusCode(ex.Status, new
+            {
+                status = ex.Status,
+                message = ex.Message,
+                traceId = HttpContext.TraceIdentifier
+            });
         }
     }
 

@@ -2,21 +2,27 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react'
 import {
-  login as loginRequest,
-  setStoredToken,
+  fetchCurrentUser,
+  getAuthSource,
   getStoredToken,
+  login as loginRequest,
+  setAuthSource,
+  setStoredToken,
   type AuthUser,
 } from '../api/client'
+import { signInWithMicrosoft, signOutMicrosoft } from './msal'
 
 type AuthContextValue = {
   user: AuthUser | null
   token: string | null
   login: (email: string, password: string) => Promise<AuthUser>
+  loginWithMicrosoft: () => Promise<AuthUser>
   logout: () => void
 }
 
@@ -57,19 +63,66 @@ function decodeUserFromToken(token: string): AuthUser | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => {
     const token = getStoredToken()
-    return token ? decodeUserFromToken(token) : null
+    if (!token || getAuthSource() === 'entra') {
+      return null
+    }
+    return decodeUserFromToken(token)
   })
+
+  useEffect(() => {
+    const token = getStoredToken()
+    if (!token || getAuthSource() !== 'entra') {
+      return
+    }
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const profile = await fetchCurrentUser()
+        if (!cancelled) {
+          setUser(profile)
+        }
+      } catch {
+        setStoredToken(null)
+        setAuthSource(null)
+        if (!cancelled) {
+          setUser(null)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const login = useCallback(async (email: string, password: string) => {
     const auth = await loginRequest(email, password)
     setStoredToken(auth.token)
+    setAuthSource('local')
+    setUser(auth)
+    return auth
+  }, [])
+
+  const loginWithMicrosoft = useCallback(async () => {
+    const auth = await signInWithMicrosoft()
     setUser(auth)
     return auth
   }, [])
 
   const logout = useCallback(() => {
-    setStoredToken(null)
-    setUser(null)
+    const clearSession = () => {
+      setStoredToken(null)
+      setAuthSource(null)
+      setUser(null)
+    }
+
+    if (getAuthSource() === 'entra') {
+      void signOutMicrosoft().finally(clearSession)
+      return
+    }
+
+    clearSession()
   }, [])
 
   const value = useMemo(
@@ -77,9 +130,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       token: user?.token ?? null,
       login,
+      loginWithMicrosoft,
       logout,
     }),
-    [user, login, logout],
+    [user, login, loginWithMicrosoft, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -23,6 +23,7 @@
     <ProjectReference Include="..\..\src\CivicFlow.Api\CivicFlow.Api.csproj" />
     <ProjectReference Include="..\..\src\CivicFlow.Application\CivicFlow.Application.csproj" />
     <ProjectReference Include="..\..\src\CivicFlow.Domain\CivicFlow.Domain.csproj" />
+    <ProjectReference Include="..\..\src\CivicFlow.Infrastructure\CivicFlow.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

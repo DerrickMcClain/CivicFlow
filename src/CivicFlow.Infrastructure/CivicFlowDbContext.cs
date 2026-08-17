@@ -52,6 +52,10 @@ public class CivicFlowDbContext(DbContextOptions<CivicFlowDbContext> options)
             entity.Property(x => x.LastName).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Email).HasMaxLength(256).IsRequired();
             entity.HasIndex(x => x.Email).IsUnique();
+            entity.Property(x => x.EntraObjectId).HasMaxLength(64);
+            entity.HasIndex(x => x.EntraObjectId)
+                .IsUnique()
+                .HasFilter("[EntraObjectId] IS NOT NULL");
             entity.Property(x => x.PasswordHash).IsRequired();
             entity.HasOne(x => x.Role)
                 .WithMany(x => x.Users)
