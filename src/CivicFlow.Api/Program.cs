@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using CivicFlow.Application.Abstractions;
+using CivicFlow.Application.Admin;
 using CivicFlow.Application.Auth;
 using CivicFlow.Application.Requests;
 using CivicFlow.Infrastructure;
@@ -14,6 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCivicFlowInfrastructure(builder.Configuration);
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<RequestService>();
+builder.Services.AddScoped<AdminService>();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
