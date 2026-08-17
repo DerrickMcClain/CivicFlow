@@ -1,0 +1,98 @@
+name: Azure deploy
+
+# Manual only. Infrastructure is provisioned separately with `az deployment group create`
+# against infra/main.bicep; this workflow only ships application code to the two App Services.
+on:
+  workflow_dispatch:
+    inputs:
+      api_app_name:
+        description: "API App Service name (Bicep output apiAppName)"
+        required: true
+        type: string
+      web_app_name:
+        description: "Frontend App Service name (Bicep output webAppName)"
+        required: true
+        type: string
+      api_base_url:
+        description: "Public API base URL (Bicep output apiBaseUrl), e.g. https://app-civicflow-api-xxxx.azurewebsites.net"
+        required: true
+        type: string
+
+concurrency:
+  group: azure-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-api:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Publish API
+        run: dotnet publish src/CivicFlow.Api/CivicFlow.Api.csproj -c Release -o publish
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy API to App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ inputs.api_app_name }}
+          package: publish
+
+      - name: Check API health
+        run: |
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent --show-error "${{ inputs.api_base_url }}/health"; then
+              echo
+              echo "Health check passed on attempt $attempt."
+              exit 0
+            fi
+            echo "Health check attempt $attempt failed; retrying in 15s."
+            sleep 15
+          done
+          echo "API did not report healthy at ${{ inputs.api_base_url }}/health"
+          exit 1
+
+  deploy-web:
+    runs-on: ubuntu-latest
+    needs: deploy-api
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: ${{ inputs.api_base_url }}
+        run: npm run build
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy frontend to App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ inputs.web_app_name }}
+          package: frontend/dist

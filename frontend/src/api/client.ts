@@ -1,5 +1,17 @@
 const TOKEN_KEY = 'civicflow.token'
 
+// Empty for local dev and the Docker/nginx stack, which are same-origin. Split hosting (Azure)
+// sets VITE_API_BASE_URL at build time to the API's public origin.
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
+
+function resolveUrl(path: string): string {
+  if (!API_BASE_URL || /^https?:\/\//i.test(path)) {
+    return path
+  }
+
+  return path.startsWith('/') ? `${API_BASE_URL}${path}` : `${API_BASE_URL}/${path}`
+}
+
 export type AuthUser = {
   token: string
   userId: number
@@ -44,7 +56,7 @@ export async function apiFetch<T>(
     headers.set('Authorization', `Bearer ${token}`)
   }
 
-  const response = await fetch(path, { ...options, headers })
+  const response = await fetch(resolveUrl(path), { ...options, headers })
   if (!response.ok) {
     let message = `Request failed (${response.status})`
     try {

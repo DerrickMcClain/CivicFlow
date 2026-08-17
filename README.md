@@ -26,7 +26,7 @@ Built as a portfolio project for public-sector / Microsoft-enterprise roles (app
 | Data | EF Core, SQL Server sequence (`CIV-YYYY-######`) |
 | Tests | xUnit + `WebApplicationFactory` against SQL Server / LocalDB |
 | UI | React 19, TypeScript, Vite, React Router, Tailwind CSS |
-| Delivery (planned) | Docker Compose, GitHub Actions CI, Azure App Service + Azure SQL |
+| Delivery | Docker Compose, GitHub Actions CI, Azure Bicep (App Service + Azure SQL) |
 
 ## Architecture
 
@@ -71,11 +71,13 @@ Microsoft Entra ID is intentionally **Phase 2** (not claimed in this MVP).
 - Citizen portal: my requests, submit Residential Permit, request detail + timeline
 - Staff / supervisor UI: work queue, case actions, supervisor dashboard
 - Admin UI: users + roles, catalog (departments / request types), audit log
+- Docker Compose local stack (API + SQL Server + nginx-served frontend)
+- GitHub Actions CI (build, xUnit, frontend build)
+- Azure Bicep template + manual deploy workflow
 
 **Next**
-- Docker Compose local stack
-- GitHub Actions CI
-- Azure deployment (MVP definition of done)
+- Run the Azure deploy against a live subscription and verify `/health`, login, and one status
+  transition (see [Azure deploy](#azure-deploy)) — until then the MVP is not complete
 
 ## Local run (dev)
 
@@ -99,7 +101,7 @@ Start LocalDB if needed:
 sqllocaldb start MSSQLLocalDB
 ```
 
-Docker SQL (`localhost,1433` / `sa` / `CivicFlow_Sql!23`) is for the Compose stack. Azure SQL comes in the Azure deploy task.
+Docker SQL (`localhost,1433` / `sa` / `CivicFlow_Sql!23`) is for the Compose stack. Azure SQL is configured by `infra/main.bicep` — see [Azure deploy](#azure-deploy).
 
 Tests default to LocalDB database `CivicFlow_Test` unless `ConnectionStrings__CivicFlow` is set.
 
@@ -123,6 +125,10 @@ npm run dev
 ```
 
 Vite proxies `/api` and `/health` to `http://localhost:5080`. Open `http://localhost:5173`.
+
+API calls use relative paths by default, which is what local dev and the Docker/nginx stack need.
+Set the build-time variable `VITE_API_BASE_URL` only when the frontend is served from a different
+origin than the API (see [Azure deploy](#azure-deploy)).
 
 ## Seed users (local / demo only)
 
@@ -158,12 +164,89 @@ _Placeholder — add after UI screens ship_
 - Supervisor dashboard
 - Admin audit log
 
-## Azure deploy (planned)
+## Azure deploy
 
-MVP definition of done includes Azure SQL + App Service API + hosted frontend. Bicep and deploy workflow are still to come. When present, configure:
+Infrastructure as code lives in `infra/main.bicep`; application deployment runs from
+`.github/workflows/azure-deploy.yml` (manual `workflow_dispatch` only).
 
-- `ConnectionStrings__CivicFlow`
-- `Jwt__Issuer`, `Jwt__Audience`, `Jwt__SigningKey`, `Jwt__ExpiryMinutes`
+> **Status:** the template and workflow are committed but have **not** been run against a live
+> subscription yet, so no public URLs are published below. Treat this section as the runbook, not as
+> evidence of a running environment.
+
+### What gets provisioned
+
+| Resource | Purpose |
+|---|---|
+| Azure SQL logical server + `CivicFlow` database (Basic tier) | Application data |
+| SQL firewall rule `AllowAllWindowsAzureIps` | Lets App Service outbound IPs reach the database |
+| Linux App Service plan (B1) | Hosts both apps |
+| App Service `app-civicflow-api-*` (`DOTNETCORE\|9.0`) | The API |
+| App Service `app-civicflow-web-*` (`NODE\|20-lts`) | Serves the built SPA via `pm2 serve --spa` |
+
+Names get a `uniqueString(resourceGroup().id)` suffix so they are globally unique. The API and
+frontend are separate origins, so the API is given `Cors__AllowedOrigin` pointing at the frontend
+App Service, and the frontend is built with `VITE_API_BASE_URL` pointing at the API App Service.
+
+API app settings written by the template: `ASPNETCORE_ENVIRONMENT=Production`, `ASPNETCORE_URLS`,
+`ConnectionStrings__CivicFlow`, `Jwt__Issuer`, `Jwt__Audience`, `Jwt__SigningKey`,
+`Jwt__ExpiryMinutes`, `Cors__AllowedOrigin`. The API migrates and seeds on startup, so there is no
+separate migration step.
+
+### 1. Provision infrastructure
+
+```powershell
+az login
+az account set --subscription "<subscription-id-or-name>"
+az group create --name rg-civicflow-mvp --location eastus
+
+az deployment group create `
+  --resource-group rg-civicflow-mvp `
+  --template-file infra/main.bicep `
+  --parameters sqlAdminLogin=civicflowadmin `
+               sqlAdminPassword="<strong-password>" `
+               jwtSigningKey="<random-32+-char-key>" `
+               location=eastus
+```
+
+Record the outputs — `apiAppName`, `webAppName`, `apiBaseUrl`, `webBaseUrl` — they are the inputs to
+the deploy workflow:
+
+```powershell
+az deployment group show --resource-group rg-civicflow-mvp --name main --query properties.outputs
+```
+
+### 2. Grant GitHub Actions access
+
+Create a service principal scoped to the resource group and store the JSON as the repository secret
+`AZURE_CREDENTIALS`:
+
+```powershell
+az ad sp create-for-rbac --name civicflow-deploy --role contributor `
+  --scopes /subscriptions/<subscription-id>/resourceGroups/rg-civicflow-mvp `
+  --sdk-auth
+```
+
+### 3. Deploy the apps
+
+Run the **Azure deploy** workflow (`workflow_dispatch`) with `api_app_name`, `web_app_name`, and
+`api_base_url` from the Bicep outputs. It publishes the API, waits for `/health`, then builds the
+frontend with `VITE_API_BASE_URL=<api_base_url>` and deploys `frontend/dist`.
+
+To publish the API without GitHub Actions:
+
+```powershell
+dotnet publish src/CivicFlow.Api/CivicFlow.Api.csproj -c Release -o publish
+Compress-Archive -Path publish/* -DestinationPath api.zip -Force
+az webapp deploy --resource-group rg-civicflow-mvp --name <apiAppName> --src-path api.zip --type zip
+```
+
+### 4. Verify (MVP gate)
+
+1. `GET <apiBaseUrl>/health` returns `200` with `{ "status": "ok" }`
+2. Sign in at `<webBaseUrl>` as `employee@civicflow.local`
+3. Move one case through a status transition and confirm it appears in the case's status history
+
+Until steps 1–3 pass against live Azure, the MVP is **not** complete.
 
 ## Phase 2 (explicit non-goals for this MVP)
 

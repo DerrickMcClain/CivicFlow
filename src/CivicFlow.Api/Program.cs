@@ -49,6 +49,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
+// Split hosting (frontend and API on different origins) needs CORS. Docker and local dev are
+// same-origin, so the policy is only registered when an origin is configured.
+const string FrontendCorsPolicy = "CivicFlowFrontend";
+var frontendOrigin = builder.Configuration["Cors:AllowedOrigin"];
+var hasFrontendOrigin = !string.IsNullOrWhiteSpace(frontendOrigin);
+if (hasFrontendOrigin)
+{
+    builder.Services.AddCors(options => options.AddPolicy(
+        FrontendCorsPolicy,
+        policy => policy
+            .WithOrigins(frontendOrigin!)
+            .AllowAnyHeader()
+            .AllowAnyMethod()));
+}
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -70,6 +85,11 @@ if (app.Environment.IsDevelopment())
 if (ShouldRedirectHttps())
 {
     app.UseHttpsRedirection();
+}
+
+if (hasFrontendOrigin)
+{
+    app.UseCors(FrontendCorsPolicy);
 }
 
 app.UseAuthentication();
