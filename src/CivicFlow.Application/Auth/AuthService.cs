@@ -38,6 +38,32 @@ public sealed class AuthService(
         return ToResponse(user);
     }
 
+    /// <summary>
+    /// Profile for an already-authenticated caller. No token is minted: Entra callers keep the
+    /// access token they arrived with, and local callers already hold theirs.
+    /// </summary>
+    public async Task<AuthResponse> GetCurrentAsync(int userId, CancellationToken cancellationToken = default)
+    {
+        var user = await db.Users
+            .Include(x => x.Role)
+            .FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken);
+
+        if (user is null || !user.IsActive)
+        {
+            throw new UnauthorizedException("Authentication is required.");
+        }
+
+        return new AuthResponse
+        {
+            Token = string.Empty,
+            UserId = user.UserId,
+            Email = user.Email,
+            Role = user.Role.RoleName.ToString(),
+            FirstName = user.FirstName,
+            LastName = user.LastName
+        };
+    }
+
     public async Task<AuthResponse> RegisterCitizenAsync(RegisterRequest request, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(request.FirstName)

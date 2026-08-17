@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using CivicFlow.Application.Auth;
 using CivicFlow.Domain.Entities;
@@ -33,6 +34,36 @@ public class AuthApiTests
         var body = await response.Content.ReadFromJsonAsync<AuthResponse>();
         Assert.Equal("Citizen", body!.Role);
         Assert.False(string.IsNullOrWhiteSpace(body.Token));
+    }
+
+    [Fact]
+    public async Task Me_returns_profile_for_local_token_when_entra_is_unconfigured()
+    {
+        var login = await _client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email = "citizen@civicflow.local",
+            password = "CivicFlow!dev1"
+        });
+        login.EnsureSuccessStatusCode();
+        var token = (await login.Content.ReadFromJsonAsync<AuthResponse>())!.Token;
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var response = await _client.SendAsync(request);
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<AuthResponse>();
+        Assert.Equal("citizen@civicflow.local", body!.Email);
+        Assert.Equal("Citizen", body.Role);
+        Assert.Equal(string.Empty, body.Token);
+    }
+
+    [Fact]
+    public async Task Me_without_token_returns_401()
+    {
+        var response = await _client.GetAsync("/api/auth/me");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
