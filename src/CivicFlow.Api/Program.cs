@@ -1,6 +1,8 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using CivicFlow.Application.Abstractions;
 using CivicFlow.Application.Auth;
+using CivicFlow.Application.Requests;
 using CivicFlow.Infrastructure;
 using CivicFlow.Infrastructure.Seed;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -11,7 +13,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCivicFlowInfrastructure(builder.Configuration);
 builder.Services.AddScoped<AuthService>();
-builder.Services.AddControllers();
+builder.Services.AddScoped<RequestService>();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddOpenApi();
 
 var jwt = builder.Configuration.GetSection("Jwt");

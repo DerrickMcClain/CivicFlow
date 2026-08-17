@@ -22,6 +22,7 @@ public static class DependencyInjection
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<CivicFlowDbContext>());
         services.AddScoped<IRequestNumberGenerator, RequestNumberGenerator>();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<IAuditLogger, AuditLogger>();
         services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
         services.AddScoped<DbSeeder>();
 
