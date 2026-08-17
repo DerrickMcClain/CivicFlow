@@ -105,6 +105,74 @@ public class RequestAuthorizationTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Employee_approve_returns_403()
+    {
+        var citizenToken = await LoginAsync("citizen@civicflow.local");
+        var requestId = await CreateRequestAsync(citizenToken, "Patio cover");
+        var employeeToken = await LoginAsync("employee@civicflow.local");
+
+        using var approve = Authed(HttpMethod.Post, $"/api/requests/{requestId}/approve", employeeToken, new
+        {
+            reason = "Looks good"
+        });
+        var response = await _client.SendAsync(approve);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Supervisor_approve_happy_path_writes_history_and_audit()
+    {
+        var citizenToken = await LoginAsync("citizen@civicflow.local");
+        var requestId = await CreateRequestAsync(citizenToken, "Shed permit");
+        var employeeToken = await LoginAsync("employee@civicflow.local");
+
+        await ChangeStatusAsync(employeeToken, requestId, "UnderReview");
+        await ChangeStatusAsync(employeeToken, requestId, "EmployeeRecommendation");
+        await ChangeStatusAsync(employeeToken, requestId, "SupervisorReview");
+
+        var supervisorToken = await LoginAsync("supervisor@civicflow.local");
+        using var approve = Authed(HttpMethod.Post, $"/api/requests/{requestId}/approve", supervisorToken, new
+        {
+            reason = "Meets ordinance"
+        });
+        var response = await _client.SendAsync(approve);
+
+        response.EnsureSuccessStatusCode();
+        using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        Assert.Equal("Approved", body.RootElement.GetProperty("status").GetString());
+        var history = body.RootElement.GetProperty("history").EnumerateArray().Select(x => x.GetProperty("newStatus").GetString()).ToList();
+        Assert.Contains("SupervisorReview", history);
+        Assert.Contains("Approved", history);
+    }
+
+    private async Task<int> CreateRequestAsync(string citizenToken, string title)
+    {
+        using var create = Authed(HttpMethod.Post, "/api/requests", citizenToken, new
+        {
+            requestTypeId = 1,
+            title,
+            description = $"{title} for a residential property.",
+            priority = 2
+        });
+        var created = await _client.SendAsync(create);
+        created.EnsureSuccessStatusCode();
+        using var createdBody = await JsonDocument.ParseAsync(await created.Content.ReadAsStreamAsync());
+        return createdBody.RootElement.GetProperty("requestId").GetInt32();
+    }
+
+    private async Task ChangeStatusAsync(string token, int requestId, string status)
+    {
+        using var request = Authed(HttpMethod.Put, $"/api/requests/{requestId}/status", token, new
+        {
+            status,
+            reason = $"Move to {status}"
+        });
+        var response = await _client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+    }
+
     private async Task<string> LoginAsync(string email)
     {
         var response = await _client.PostAsJsonAsync("/api/auth/login", new

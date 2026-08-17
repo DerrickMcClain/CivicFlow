@@ -33,6 +33,18 @@ public sealed class AssignRequest
     public string? Reason { get; set; }
 }
 
+public sealed class DecisionRequest
+{
+    public string? Reason { get; set; }
+}
+
+public sealed class SupervisorDashboardDto
+{
+    public int OpenCount { get; set; }
+    public int CompletedCount { get; set; }
+    public int AgingOverSevenDaysCount { get; set; }
+}
+
 public sealed class ServiceRequestListDto
 {
     public int RequestId { get; set; }

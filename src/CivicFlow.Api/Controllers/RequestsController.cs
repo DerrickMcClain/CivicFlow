@@ -157,6 +157,79 @@ public class RequestsController(RequestService requests) : ControllerBase
         }
     }
 
+    [HttpPost("{id:int}/approve")]
+    [Authorize(Roles = "Supervisor")]
+    public async Task<ActionResult<ServiceRequestDetailDto>> Approve(
+        int id,
+        [FromBody] DecisionRequest? body,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var detail = await requests.ApproveAsync(
+                id,
+                CurrentUser.GetUserId(User),
+                CurrentUser.GetRole(User),
+                body?.Reason,
+                GetIp(),
+                cancellationToken);
+            return Ok(detail);
+        }
+        catch (AppException ex)
+        {
+            return Map(ex);
+        }
+    }
+
+    [HttpPost("{id:int}/reject")]
+    [Authorize(Roles = "Supervisor")]
+    public async Task<ActionResult<ServiceRequestDetailDto>> Reject(
+        int id,
+        [FromBody] DecisionRequest body,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var detail = await requests.RejectAsync(
+                id,
+                CurrentUser.GetUserId(User),
+                CurrentUser.GetRole(User),
+                body.Reason,
+                GetIp(),
+                cancellationToken);
+            return Ok(detail);
+        }
+        catch (AppException ex)
+        {
+            return Map(ex);
+        }
+    }
+
+    [HttpPut("{id:int}/reassign")]
+    [Authorize(Roles = "Supervisor,Administrator")]
+    public async Task<ActionResult<ServiceRequestDetailDto>> Reassign(
+        int id,
+        [FromBody] AssignRequest body,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var detail = await requests.ReassignAsync(
+                id,
+                CurrentUser.GetUserId(User),
+                CurrentUser.GetRole(User),
+                body.AssignedToUserId,
+                body.Reason,
+                GetIp(),
+                cancellationToken);
+            return Ok(detail);
+        }
+        catch (AppException ex)
+        {
+            return Map(ex);
+        }
+    }
+
     private string? GetIp() => HttpContext.Connection.RemoteIpAddress?.ToString();
 
     private ObjectResult Map(AppException ex) => StatusCode(ex.Status, new

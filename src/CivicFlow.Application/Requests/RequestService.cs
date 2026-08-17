@@ -370,6 +370,89 @@ public sealed class RequestService(
             .ToListAsync(cancellationToken);
     }
 
+    public Task<ServiceRequestDetailDto> ApproveAsync(
+        int requestId,
+        int actorId,
+        RoleName role,
+        string? reason,
+        string? ip,
+        CancellationToken cancellationToken = default)
+    {
+        if (role != RoleName.Supervisor)
+        {
+            throw new ForbiddenException("Only supervisors can approve requests.");
+        }
+
+        return ChangeStatusAsync(
+            requestId,
+            actorId,
+            role,
+            RequestStatusName.Approved,
+            reason,
+            ip,
+            cancellationToken);
+    }
+
+    public Task<ServiceRequestDetailDto> RejectAsync(
+        int requestId,
+        int actorId,
+        RoleName role,
+        string? reason,
+        string? ip,
+        CancellationToken cancellationToken = default)
+    {
+        if (role != RoleName.Supervisor)
+        {
+            throw new ForbiddenException("Only supervisors can reject requests.");
+        }
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new ValidationException("A reason is required to reject a request.");
+        }
+
+        return ChangeStatusAsync(
+            requestId,
+            actorId,
+            role,
+            RequestStatusName.Rejected,
+            reason,
+            ip,
+            cancellationToken);
+    }
+
+    public Task<ServiceRequestDetailDto> ReassignAsync(
+        int requestId,
+        int actorId,
+        RoleName role,
+        int assignToUserId,
+        string? reason,
+        string? ip,
+        CancellationToken cancellationToken = default)
+    {
+        if (role is not (RoleName.Supervisor or RoleName.Administrator))
+        {
+            throw new ForbiddenException("Only supervisors or administrators can reassign requests.");
+        }
+
+        return AssignAsync(requestId, actorId, role, assignToUserId, reason, ip, cancellationToken);
+    }
+
+    public async Task<SupervisorDashboardDto> GetSupervisorDashboardAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var agingCutoff = DateTime.UtcNow.AddDays(-7);
+
+        return new SupervisorDashboardDto
+        {
+            OpenCount = await db.ServiceRequests.CountAsync(x => !x.Status.IsTerminal, cancellationToken),
+            CompletedCount = await db.ServiceRequests.CountAsync(
+                x => x.Status.StatusName == RequestStatusName.Completed, cancellationToken),
+            AgingOverSevenDaysCount = await db.ServiceRequests.CountAsync(
+                x => !x.Status.IsTerminal && x.CreatedAt < agingCutoff, cancellationToken)
+        };
+    }
+
     private static void EnsureMutable(RequestStatusName status)
     {
         if (WorkflowPolicy.IsTerminal(status))
