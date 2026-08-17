@@ -46,6 +46,11 @@ public class EntraAuthTests
         var persisted = await db.Users.Include(x => x.Role).SingleAsync(x => x.EntraObjectId == oid);
         Assert.Equal(body.UserId, persisted.UserId);
         Assert.Equal(EntraAuthConstants.PasswordSentinel, persisted.PasswordHash);
+
+        using var mine = new HttpRequestMessage(HttpMethod.Get, "/api/requests/my");
+        mine.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var mineResponse = await _client.SendAsync(mine);
+        Assert.Equal(HttpStatusCode.OK, mineResponse.StatusCode);
     }
 
     [Fact]
@@ -122,6 +127,17 @@ public class EntraAuthTests
     public async Task Me_without_token_returns_401()
     {
         var response = await _client.GetAsync("/api/auth/me");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Malformed_bearer_payload_returns_401_not_500()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "a.MQ.b");
+
+        var response = await _client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

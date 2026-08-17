@@ -94,7 +94,10 @@ public sealed class EntraUserSyncMiddleware(RequestDelegate next, IConfiguration
             .Where(x => x.Type is "roles" or "role" || x.Type == ClaimTypes.Role)
             .Select(x => x.Value)
             .Distinct(StringComparer.Ordinal)
-            .Select(value => Enum.TryParse<RoleName>(value, out var parsed) ? parsed : (RoleName?)null)
+            .Select(value =>
+                Enum.TryParse<RoleName>(value, out var parsed) && Enum.IsDefined(parsed)
+                    ? parsed
+                    : (RoleName?)null)
             .Where(x => x is not null)
             .Distinct()
             .ToList();

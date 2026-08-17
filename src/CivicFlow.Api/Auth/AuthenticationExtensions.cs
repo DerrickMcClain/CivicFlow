@@ -140,12 +140,22 @@ public static class AuthenticationExtensions
         {
             var payload = Base64Url.DecodeFromChars(parts[1]);
             using var document = JsonDocument.Parse(payload);
-            return document.RootElement.TryGetProperty("iss", out var issuer)
-                ? issuer.GetString()
-                : null;
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            if (!document.RootElement.TryGetProperty("iss", out var issuer)
+                || issuer.ValueKind != JsonValueKind.String)
+            {
+                return null;
+            }
+
+            return issuer.GetString();
         }
-        catch (Exception ex) when (ex is FormatException or JsonException)
+        catch (Exception)
         {
+            // Untrusted unsigned peek: any malformed token must fall through to 401, never 500.
             return null;
         }
     }
