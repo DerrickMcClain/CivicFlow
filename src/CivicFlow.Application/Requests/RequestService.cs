@@ -177,6 +177,207 @@ public sealed class RequestService(
         return await GetAsync(request.RequestId, citizenId, RoleName.Citizen, cancellationToken);
     }
 
+    public async Task<ServiceRequestDetailDto> ChangeStatusAsync(
+        int requestId,
+        int actorId,
+        RoleName role,
+        RequestStatusName to,
+        string? reason,
+        string? ip,
+        CancellationToken cancellationToken = default)
+    {
+        var request = await db.ServiceRequests
+            .Include(x => x.Status)
+            .FirstOrDefaultAsync(x => x.RequestId == requestId, cancellationToken)
+            ?? throw new NotFoundException("Service request not found.");
+
+        EnsureMutable(request.Status.StatusName);
+
+        var from = request.Status.StatusName;
+        var isOwner = request.CitizenId == actorId;
+        if (!WorkflowPolicy.CanTransition(from, to, role, isOwner))
+        {
+            throw new ConflictException("That status transition is not allowed.");
+        }
+
+        var newStatus = await db.RequestStatuses
+            .SingleAsync(x => x.StatusId == (int)to, cancellationToken);
+        var now = DateTime.UtcNow;
+
+        request.StatusHistory.Add(new RequestStatusHistory
+        {
+            OldStatusId = request.StatusId,
+            NewStatusId = newStatus.StatusId,
+            ChangedByUserId = actorId,
+            Reason = reason,
+            ChangedAt = now
+        });
+        request.StatusId = newStatus.StatusId;
+        request.UpdatedAt = now;
+        if (WorkflowPolicy.IsTerminal(to))
+        {
+            request.CompletedAt = now;
+        }
+
+        await audit.WriteAsync(
+            actorId,
+            "CASE_STATUS_CHANGED",
+            "ServiceRequest",
+            request.RequestNumber,
+            from.ToString(),
+            to.ToString(),
+            ip,
+            cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return await GetAsync(request.RequestId, actorId, role, cancellationToken);
+    }
+
+    public async Task<ServiceRequestDetailDto> AddNoteAsync(
+        int requestId,
+        int actorId,
+        RoleName role,
+        string text,
+        bool isInternal,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            throw new ValidationException("Note text is required.");
+        }
+
+        if (role == RoleName.Citizen)
+        {
+            throw new ForbiddenException("Citizens cannot add staff notes.");
+        }
+
+        var request = await db.ServiceRequests
+            .Include(x => x.Status)
+            .FirstOrDefaultAsync(x => x.RequestId == requestId, cancellationToken)
+            ?? throw new NotFoundException("Service request not found.");
+
+        EnsureMutable(request.Status.StatusName);
+
+        request.Notes.Add(new CaseNote
+        {
+            AuthorId = actorId,
+            NoteText = text.Trim(),
+            CreatedAt = DateTime.UtcNow,
+            IsInternal = isInternal
+        });
+        request.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+
+        return await GetAsync(request.RequestId, actorId, role, cancellationToken);
+    }
+
+    public async Task<ServiceRequestDetailDto> AssignAsync(
+        int requestId,
+        int actorId,
+        RoleName role,
+        int assignToUserId,
+        string? reason,
+        string? ip,
+        CancellationToken cancellationToken = default)
+    {
+        if (role is not (RoleName.Employee or RoleName.Supervisor or RoleName.Administrator))
+        {
+            throw new ForbiddenException("You cannot assign service requests.");
+        }
+
+        var request = await db.ServiceRequests
+            .Include(x => x.Status)
+            .FirstOrDefaultAsync(x => x.RequestId == requestId, cancellationToken)
+            ?? throw new NotFoundException("Service request not found.");
+
+        EnsureMutable(request.Status.StatusName);
+
+        var assignee = await db.Users
+            .Include(x => x.Role)
+            .FirstOrDefaultAsync(x => x.UserId == assignToUserId && x.IsActive, cancellationToken)
+            ?? throw new NotFoundException("Assignee not found.");
+
+        if (assignee.Role.RoleName is not (RoleName.Employee or RoleName.Supervisor))
+        {
+            throw new ValidationException("Requests can only be assigned to employees or supervisors.");
+        }
+
+        var now = DateTime.UtcNow;
+        var previousAssigneeId = request.AssignedEmployeeId;
+        request.Assignments.Add(new AssignmentHistory
+        {
+            AssignedFromUserId = previousAssigneeId,
+            AssignedToUserId = assignee.UserId,
+            AssignedByUserId = actorId,
+            AssignedAt = now,
+            Reason = reason
+        });
+        request.AssignedEmployeeId = assignee.UserId;
+        request.UpdatedAt = now;
+
+        await audit.WriteAsync(
+            actorId,
+            "CASE_ASSIGNED",
+            "ServiceRequest",
+            request.RequestNumber,
+            previousAssigneeId?.ToString(),
+            assignee.UserId.ToString(),
+            ip,
+            cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return await GetAsync(request.RequestId, actorId, role, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ServiceRequestListDto>> ListStaffQueueAsync(
+        RoleName role,
+        int actorId,
+        RequestStatusName? status,
+        Priority? priority,
+        CancellationToken cancellationToken = default)
+    {
+        if (role is not (RoleName.Employee or RoleName.Supervisor or RoleName.Administrator))
+        {
+            throw new ForbiddenException("You cannot view the staff work queue.");
+        }
+
+        var query = db.ServiceRequests
+            .AsNoTracking()
+            .Where(x => !x.Status.IsTerminal);
+
+        if (status.HasValue)
+        {
+            query = query.Where(x => x.Status.StatusName == status.Value);
+        }
+
+        if (priority.HasValue)
+        {
+            query = query.Where(x => x.Priority == priority.Value);
+        }
+
+        return await query
+            .OrderBy(x => x.CreatedAt)
+            .Select(x => new ServiceRequestListDto
+            {
+                RequestId = x.RequestId,
+                RequestNumber = x.RequestNumber,
+                Title = x.Title,
+                Status = x.Status.StatusName.ToString(),
+                Priority = x.Priority,
+                CreatedAt = x.CreatedAt,
+                SubmittedAt = x.SubmittedAt
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    private static void EnsureMutable(RequestStatusName status)
+    {
+        if (WorkflowPolicy.IsTerminal(status))
+        {
+            throw new ConflictException("Closed requests cannot be modified.");
+        }
+    }
+
     private async Task<ServiceRequest?> LoadDetailAsync(int requestId, CancellationToken cancellationToken)
     {
         return await db.ServiceRequests

@@ -83,6 +83,80 @@ public class RequestsController(RequestService requests) : ControllerBase
         }
     }
 
+    [HttpPut("{id:int}/status")]
+    [Authorize(Roles = "Employee,Supervisor,Administrator")]
+    public async Task<ActionResult<ServiceRequestDetailDto>> ChangeStatus(
+        int id,
+        [FromBody] ChangeStatusRequest body,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var detail = await requests.ChangeStatusAsync(
+                id,
+                CurrentUser.GetUserId(User),
+                CurrentUser.GetRole(User),
+                body.Status,
+                body.Reason,
+                GetIp(),
+                cancellationToken);
+            return Ok(detail);
+        }
+        catch (AppException ex)
+        {
+            return Map(ex);
+        }
+    }
+
+    [HttpPost("{id:int}/notes")]
+    [Authorize(Roles = "Employee,Supervisor,Administrator")]
+    public async Task<ActionResult<ServiceRequestDetailDto>> AddNote(
+        int id,
+        [FromBody] AddNoteRequest body,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var detail = await requests.AddNoteAsync(
+                id,
+                CurrentUser.GetUserId(User),
+                CurrentUser.GetRole(User),
+                body.NoteText,
+                body.IsInternal,
+                cancellationToken);
+            return Ok(detail);
+        }
+        catch (AppException ex)
+        {
+            return Map(ex);
+        }
+    }
+
+    [HttpPut("{id:int}/assignment")]
+    [Authorize(Roles = "Employee,Supervisor,Administrator")]
+    public async Task<ActionResult<ServiceRequestDetailDto>> Assign(
+        int id,
+        [FromBody] AssignRequest body,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var detail = await requests.AssignAsync(
+                id,
+                CurrentUser.GetUserId(User),
+                CurrentUser.GetRole(User),
+                body.AssignedToUserId,
+                body.Reason,
+                GetIp(),
+                cancellationToken);
+            return Ok(detail);
+        }
+        catch (AppException ex)
+        {
+            return Map(ex);
+        }
+    }
+
     private string? GetIp() => HttpContext.Connection.RemoteIpAddress?.ToString();
 
     private ObjectResult Map(AppException ex) => StatusCode(ex.Status, new

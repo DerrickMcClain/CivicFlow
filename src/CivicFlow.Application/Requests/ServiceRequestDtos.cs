@@ -15,6 +15,24 @@ public sealed class RespondRequest
     public string Message { get; set; } = string.Empty;
 }
 
+public sealed class ChangeStatusRequest
+{
+    public RequestStatusName Status { get; set; }
+    public string? Reason { get; set; }
+}
+
+public sealed class AddNoteRequest
+{
+    public string NoteText { get; set; } = string.Empty;
+    public bool IsInternal { get; set; } = true;
+}
+
+public sealed class AssignRequest
+{
+    public int AssignedToUserId { get; set; }
+    public string? Reason { get; set; }
+}
+
 public sealed class ServiceRequestListDto
 {
     public int RequestId { get; set; }

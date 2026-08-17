@@ -68,6 +68,43 @@ public class RequestAuthorizationTests
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Employee_illegal_transition_returns_409()
+    {
+        var citizenToken = await LoginAsync("citizen@civicflow.local");
+        using var create = Authed(HttpMethod.Post, "/api/requests", citizenToken, new
+        {
+            requestTypeId = 1,
+            title = "Driveway expansion",
+            description = "Expand a residential driveway.",
+            priority = 2
+        });
+        var created = await _client.SendAsync(create);
+        created.EnsureSuccessStatusCode();
+        using var createdBody = await JsonDocument.ParseAsync(await created.Content.ReadAsStreamAsync());
+        var requestId = createdBody.RootElement.GetProperty("requestId").GetInt32();
+
+        var employeeToken = await LoginAsync("employee@civicflow.local");
+        using var status = Authed(HttpMethod.Put, $"/api/requests/{requestId}/status", employeeToken, new
+        {
+            status = "Approved",
+            reason = "Skipping workflow"
+        });
+        var response = await _client.SendAsync(status);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Employee_queue_returns_200()
+    {
+        var token = await LoginAsync("employee@civicflow.local");
+        using var request = Authed(HttpMethod.Get, "/api/employee/requests", token);
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     private async Task<string> LoginAsync(string email)
     {
         var response = await _client.PostAsJsonAsync("/api/auth/login", new
